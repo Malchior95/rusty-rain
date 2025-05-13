@@ -1,5 +1,5 @@
 #![allow(dead_code, unused_variables)]
-use ai::a_star::debug_path_drawer::PathDrawer;
+use ai::a_star::{AStarPathFinder, debug_path_drawer::PathDrawer};
 use log::info;
 use math::Pos;
 //TODO: remove the code above
@@ -20,7 +20,10 @@ fn main() {
     //ai test
     let start = Pos { x: 12, y: 12 };
     let end = Pos { x: 4, y: 3 };
-    let path = crate::ai::a_star::a_star(&world.map, start, end);
+
+    let path_finder = AStarPathFinder::new(&world.map, start, end);
+
+    let path = path_finder.a_star();
 
     if let Some(path) = path {
         let map_drawer = PathDrawer {

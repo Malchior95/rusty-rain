@@ -15,6 +15,10 @@ pub struct AStarPathFinder<'a> {
 }
 
 impl<'a> AStarPathFinder<'a> {
+    pub fn new(map: &'a WorldMap, start: Pos, end: Pos) -> Self {
+        Self { map, start, end }
+    }
+
     pub fn a_star(&self) -> Option<Vec<Pos>> {
         let start_cost = WithPriority::default(self.start);
 
