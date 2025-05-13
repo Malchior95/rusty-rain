@@ -1,0 +1,39 @@
+use rand::{rng, seq::IndexedRandom};
+
+use super::actions::Action;
+
+#[derive(Clone)]
+pub struct Worker {
+    pub name: String,
+    pub action: Action,
+    pub worker_type: WorkerType,
+}
+
+#[derive(Default, Clone, Copy)]
+pub enum WorkerType {
+    #[default]
+    Human,
+    Beaver,
+    //TODO: more
+}
+
+impl Worker {
+    const FIRST_NAMES: [&str; 5] = ["Lorien", "Gaud", "Risp", "Horville", "Bargo"];
+    const LAST_NAMES: [&str; 5] = ["Digger", "Smith", "Miller", "Roamer", "Laic"];
+
+    pub(crate) fn requries_break(&self) -> bool {
+        todo!()
+    }
+}
+
+impl Default for Worker {
+    fn default() -> Self {
+        let f_name = Worker::FIRST_NAMES.choose(&mut rng()).unwrap();
+        let l_name = Worker::LAST_NAMES.choose(&mut rng()).unwrap();
+        Self {
+            name: format!("{} {}", f_name, l_name),
+            action: Default::default(),
+            worker_type: Default::default(),
+        }
+    }
+}
