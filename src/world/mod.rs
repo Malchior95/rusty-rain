@@ -1,5 +1,5 @@
-use crate::world::structures::hearth::Hearth;
 use crate::world::structures::shop::Shop;
+use crate::{math::Pos, world::structures::hearth::Hearth};
 use std::{array::from_fn, collections::LinkedList};
 
 use workers::Worker;
@@ -22,15 +22,29 @@ impl World {
     pub fn new_test(width: usize, height: usize) -> Self {
         let mut map = WorldMap::new_test(width, height);
 
-        let main_hearth = Hearth {
-            x: width / 2,
-            y: height / 2,
-        };
-
-        map.build(main_hearth.x, main_hearth.y, Hearth::WIDTH, Hearth::HEIGHT);
-
         //this is cleaver! Note that 5 in type annotations is an array size!
-        let unassigned_workers = LinkedList::from(from_fn::<Worker, 5, _>(|_| Worker::default()));
+        let mut unassigned_workers =
+            LinkedList::from(from_fn::<Worker, 5, _>(|_| Worker::default()));
+        let worker = unassigned_workers.pop_front();
+
+        let main_hearth = Hearth::new(
+            Pos {
+                x: width / 2,
+                y: height / 2,
+            },
+            worker.unwrap(),
+        );
+
+        map.build(
+            main_hearth.pos.x,
+            main_hearth.pos.y,
+            Hearth::WIDTH,
+            Hearth::HEIGHT,
+        );
+
+        let path = (3..11).map(|y| Pos::new(3, y));
+
+        path.for_each(|p| map.map[p.y][p.x] = TileType::Road);
 
         let mut world = World {
             map,
@@ -59,19 +73,15 @@ impl World {
 }
 
 impl World {
-    pub fn next_tick(&self, delta: f32) -> World {
-        //TODO: for now I only 'clone' everything, to avoid substituting in-place.
-        //I do not yet know if calculating values in-place has significant drawbacks
-        //For now the cost of cloning is negligible...
-        //I will want to replace all those clones with "calculate state"
-        //I do not yet know if I would like to pass an array of commands ("user actions") to this
-        //function, or rather implement this elsewhere. Then this function would only progress all
-        //action already in progress and continue game's state as if no user interaction happened
-        World {
-            map: self.map.clone(),
-            shops: self.shops.clone(),
-            main_hearth: self.main_hearth.clone(),
-            unassigned_workers: self.unassigned_workers.clone(),
-        }
+    pub fn next_tick(&mut self, delta: f32) {
+        //for shop in &mut self.shops {
+        //    shop.process(&mut self.map, delta);
+        //}
+
+        //for worker in &mut self.unassigned_workers {
+        //    worker.process(delta);
+        //}
+
+        self.main_hearth.process(delta);
     }
 }

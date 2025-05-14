@@ -123,9 +123,9 @@ impl TileType {
     pub fn to_char(&self) -> &str {
         match self {
             TileType::Empty => "  ",
-            TileType::Road => "--",
-            TileType::Structure => "\u{f015} ",
-            TileType::Tree => "\u{f1bb} ",
+            TileType::Road => " ",
+            TileType::Structure => " ",
+            TileType::Tree => " ",
         }
     }
 }

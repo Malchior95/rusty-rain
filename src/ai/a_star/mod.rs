@@ -1,7 +1,4 @@
 use std::collections::{BinaryHeap, HashMap};
-use std::fmt::Display;
-
-use log::info;
 
 pub mod debug_path_drawer;
 
@@ -15,6 +12,8 @@ pub struct AStarPathFinder<'a> {
 }
 
 impl<'a> AStarPathFinder<'a> {
+    const HEURISTICS_INFLUENCE: f32 = 0.5;
+
     pub fn new(map: &'a WorldMap, start: Pos, end: Pos) -> Self {
         Self { map, start, end }
     }
@@ -55,7 +54,7 @@ impl<'a> AStarPathFinder<'a> {
                 if !cost_exists || cost < cost_so_far[&next] {
                     cost_so_far.insert(next, cost);
 
-                    let priority = cost + Self::heuristic(&self.end, &next) as f32;
+                    let priority = cost + Self::heuristic(&self.end, &next);
                     frontier.push(WithPriority::new(next, -priority));
 
                     came_from.insert(next, Some(current));
@@ -67,7 +66,6 @@ impl<'a> AStarPathFinder<'a> {
     }
 
     fn build_path(&self, came_from: &HashMap<Pos, Option<Pos>>) -> Vec<Pos> {
-        info!("Path found, backtracking");
         let mut path = Vec::<Pos>::new();
         let mut current = Some(self.end);
         while current.is_some() {
@@ -79,10 +77,11 @@ impl<'a> AStarPathFinder<'a> {
         Vec::from_iter(path.iter().copied().rev())
     }
 
-    fn heuristic(a: &Pos, b: &Pos) -> i32 {
+    fn heuristic(a: &Pos, b: &Pos) -> f32 {
         //assumes square grid
         //TODO: explore diagonal movement...
-        (a.x as i32 - b.x as i32).abs() + (a.y as i32 - b.y as i32).abs()
+        let base = (a.x as f32 - b.x as f32).abs() + (a.y as f32 - b.y as f32).abs();
+        base * AStarPathFinder::HEURISTICS_INFLUENCE
     }
 
     fn get_neighbours(&self, pos: Pos) -> Vec<Pos> {

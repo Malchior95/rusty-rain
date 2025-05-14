@@ -1,6 +1,6 @@
 use crate::world::{
     World,
-    actions::{Action, ChopWood, Rest},
+    actions::{ChopWood, Rest},
     structures::shop::{Inventory, ShopType},
 };
 
@@ -33,34 +33,5 @@ impl Shop {
         world.shops.push_back(woodcutter);
 
         true
-    }
-
-    //FIXME: this logic needs finishing
-    pub fn woodcutter_process_update(self, world: &World, delta: f32) {
-        for mut worker in self.workers {
-            //continue current action
-            //
-            //Should I use `for worker in &mut self.workers`
-            //I need a clone here, cuz I cannot move the value otherwise. Another solution would be
-            //that funky Option::Take() That I have seen elsewhere
-            worker.action = worker.action.progress();
-
-            //if idle - action was completed. Take a rest or start another action, as decided by
-            //the Shop
-            if let Action::Idle = worker.action {
-                continue;
-            }
-
-            //take a break if necessary
-            if worker.requries_break() {
-                worker.action = Action::Rest(Rest::new());
-            }
-
-            //start new actions
-            if !self.inventory.is_full() {
-                //cut trees
-                worker.action = Action::ChopWood(ChopWood::new())
-            }
-        }
     }
 }

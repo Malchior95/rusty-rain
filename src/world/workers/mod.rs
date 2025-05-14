@@ -1,11 +1,8 @@
 use rand::{rng, seq::IndexedRandom};
 
-use super::actions::Action;
-
 #[derive(Clone)]
 pub struct Worker {
     pub name: String,
-    pub action: Action,
     pub worker_type: WorkerType,
 }
 
@@ -24,6 +21,10 @@ impl Worker {
     pub(crate) fn requries_break(&self) -> bool {
         todo!()
     }
+
+    pub(crate) fn process(&mut self, delta: f32) {
+        todo!()
+    }
 }
 
 impl Default for Worker {
@@ -32,7 +33,6 @@ impl Default for Worker {
         let l_name = Worker::LAST_NAMES.choose(&mut rng()).unwrap();
         Self {
             name: format!("{} {}", f_name, l_name),
-            action: Default::default(),
             worker_type: Default::default(),
         }
     }

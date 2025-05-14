@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use crate::world::{World, actions::Action, inventory::Inventory, workers::Worker};
+use crate::world::{inventory::Inventory, workers::Worker, world_map::WorldMap};
 
 pub mod woodcutter;
 
@@ -26,9 +24,11 @@ pub enum ShopType {
 }
 
 impl Shop {
-    pub fn assign_worker(&mut self, mut worker: Worker) {
-        worker.action = Action::Idle;
-
+    pub fn assign_worker(&mut self, worker: Worker) {
         self.workers.push(worker);
+    }
+
+    pub(crate) fn process(&mut self, world: &mut WorldMap, delta: f32) {
+        todo!()
     }
 }

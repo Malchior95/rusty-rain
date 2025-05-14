@@ -16,16 +16,16 @@ impl<'a> PathDrawer<'a> {
                 if let Some(next) = next {
                     //not that lower values are at the top of the screen when drawin in terminal
                     if next.y < pos.y {
-                        return "\u{eab7} ";
+                        return " ";
                     }
                     if next.y > pos.y {
-                        return "\u{f078} ";
+                        return " ";
                     }
                     if next.x < pos.x {
-                        return "\u{eab5} ";
+                        return " ";
                     }
                     if next.x > pos.x {
-                        return "\u{eab6} ";
+                        return " ";
                     }
                     DEFAULT_MARKER
                 } else {

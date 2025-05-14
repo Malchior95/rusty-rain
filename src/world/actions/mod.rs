@@ -1,22 +1,42 @@
+use log::info;
+
 use crate::ai::a_star;
 
-#[derive(Clone, Default)]
-pub enum Action {
-    #[default]
-    Idle,
-    Rest(Rest),
-    Haul(Haul),
-    ChopWood(ChopWood),
+//I just had Rust implicilty copy this, without putting it back... so the actual value in enum was
+//never updated. Need to be careful with Copy
+#[derive(Debug, Clone)]
+pub struct BasicAction {
+    pub progress: f32,
+    pub requirement: f32,
 }
 
-impl Action {
-    pub fn progress(self) -> Action {
-        todo!()
+#[derive(Clone, Copy, Default)]
+pub enum ActionResult {
+    #[default]
+    InProgress,
+    Completed,
+}
+
+impl BasicAction {
+    pub fn new(requirement: f32) -> Self {
+        Self {
+            progress: 0.0,
+            requirement,
+        }
+    }
+
+    pub fn process(&mut self, delta: f32) -> ActionResult {
+        self.progress += delta;
+        if self.progress > self.requirement {
+            ActionResult::Completed
+        } else {
+            ActionResult::InProgress
+        }
     }
 }
 
 #[derive(Clone)]
-pub struct Haul {
+pub struct HaulAction {
     pub progress: f32,
     pub requirement: f32,
     pub path: Vec<(usize, usize)>,
@@ -29,29 +49,9 @@ pub struct ChopWood {
     pub path: Vec<(usize, usize)>,
 }
 
-impl ChopWood {
-    pub fn new() -> Self {
-        Self {
-            progress: 0.0,
-            requirement: 10.0,
-            path: todo!(), //FIXME:
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct Rest {
     pub progress: f32,
     pub requirement: f32,
     pub path: Vec<(usize, usize)>,
-}
-
-impl Rest {
-    pub fn new() -> Self {
-        Self {
-            progress: 0.0,
-            requirement: 90.0,
-            path: todo!(), //FIXME:
-        }
-    }
 }
