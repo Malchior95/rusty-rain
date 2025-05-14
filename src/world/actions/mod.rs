@@ -39,7 +39,17 @@ impl BasicAction {
 pub struct HaulAction {
     pub progress: f32,
     pub requirement: f32,
-    pub path: Vec<(usize, usize)>,
+}
+
+impl HaulAction {
+    pub fn process(&mut self, delta: f32) -> ActionResult {
+        self.progress += delta;
+        if self.progress > self.requirement {
+            ActionResult::Completed
+        } else {
+            ActionResult::InProgress
+        }
+    }
 }
 
 #[derive(Clone)]

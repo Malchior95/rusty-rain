@@ -25,7 +25,7 @@ pub struct Hearth {
 #[derive(Clone)]
 pub struct HearthWorker {
     pub worker: Worker,
-    pub action: HearthWorkerAction,
+    pub action: Option<HearthWorkerAction>,
 }
 
 #[derive(Clone, Default)]
@@ -53,7 +53,7 @@ impl Hearth {
             inventory: HashMap::from_iter([(InventoryItem::Wood, 10.0)]),
             hearth_worker: Some(HearthWorker {
                 worker,
-                action: HearthWorkerAction::default(),
+                action: Some(HearthWorkerAction::default()),
             }),
         }
     }
@@ -62,12 +62,66 @@ impl Hearth {
         //TODO: worker should fetch wood if suply low - I will probably need a reference to World
         //since World references this, it might be better to take Store (or whatever) as a
         //reference
+        self.process_worker_fuel_haul(delta);
 
-        let action = self.action.take().unwrap_or_default();
+        let action = self.action.take().unwrap();
         match action {
             HearthAction::Burning(action) => self.process_burning(action, delta),
             HearthAction::Idle => self.process_idle(delta),
         };
+    }
+
+    fn process_worker_fuel_haul(&mut self, delta: f32) {
+        if self.hearth_worker.is_none() {
+            info!("No workers!");
+            //cannot fetch fuel
+            return;
+        }
+
+        if *self.inventory.get(&InventoryItem::Wood).unwrap_or(&0.0) > 10.0 {
+            //no need to fetch fuel - stock full
+            return;
+        }
+
+        let mut worker = self.hearth_worker.take().unwrap();
+
+        let action = worker.action.take().unwrap();
+
+        match action {
+            HearthWorkerAction::Idle => self.worker_start_hauling(&mut worker),
+            HearthWorkerAction::Haul(haul_action) => {
+                self.worker_continue_hauling(&mut worker, haul_action, delta)
+            }
+        }
+
+        self.hearth_worker = Some(worker); //put back worker
+    }
+
+    fn worker_start_hauling(&self, worker: &mut HearthWorker) {
+        info!("Worker started hauling!");
+        worker.action = Some(HearthWorkerAction::Haul(HaulAction {
+            progress: 0.0,
+            requirement: 20.0,
+        }));
+    }
+
+    fn worker_continue_hauling(
+        &mut self,
+        worker: &mut HearthWorker,
+        mut action: HaulAction,
+        delta: f32,
+    ) {
+        let result = action.process(delta);
+        if let ActionResult::Completed = result {
+            info!("Worker finished hauling");
+            worker.action = Some(HearthWorkerAction::Idle);
+
+            let wood = self.inventory.get(&InventoryItem::Wood).unwrap_or(&0.0);
+            self.inventory.insert(InventoryItem::Wood, wood + 10.0);
+            return;
+        }
+
+        worker.action = Some(HearthWorkerAction::Haul(action))
     }
 
     fn process_burning(&mut self, mut action: BasicAction, delta: f32) {
@@ -78,7 +132,6 @@ impl Hearth {
 
         if let ActionResult::Completed = result {
             self.action = Some(HearthAction::Idle);
-            info!("Hearth has finished burning!");
             return;
         }
 
@@ -105,5 +158,7 @@ impl Hearth {
 
         //TODO: bad things should happen if the hearth is not burning
         //for now nothing happens
+
+        self.action = Some(HearthAction::Idle);
     }
 }
