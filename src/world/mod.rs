@@ -87,10 +87,19 @@ impl World {
         //    worker.process(delta);
         //}
 
+        //TODO: main hearth should be just a shop - see shop class for other TODO
+
         self.main_hearth
             .process(&mut self.map, &mut self.shops, delta);
 
-        //TODO: pop from front of the list of all shops, then invoke process with that item and the
-        //reminder of the list
+        //when processing shops, I cannot just pass the list of all shops to shop, as that would
+        //contain double reference to the same object (which is not allowed in rust)
+        //I need to pop item from the queue first, and can then safely pass list of all rmaining
+        //shops to it's process function. I then place the shop back in the queue
+        for _ in 0..self.shops.len() {
+            let mut shop = self.shops.pop_front().unwrap();
+            shop.process(&mut self.map, &self.shops, delta);
+            self.shops.push_back(shop);
+        }
     }
 }

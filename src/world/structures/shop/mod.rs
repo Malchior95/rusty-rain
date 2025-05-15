@@ -1,3 +1,5 @@
+use std::collections::LinkedList;
+
 use crate::world::{inventory::Inventory, workers::Worker, world_map::WorldMap};
 
 pub mod store;
@@ -32,7 +34,7 @@ impl Shop {
         self.workers.push(worker);
     }
 
-    pub(crate) fn process(&mut self, world: &mut WorldMap, delta: f32) {
-        todo!()
+    pub(crate) fn process(&mut self, world: &mut WorldMap, shops: &LinkedList<Shop>, delta: f32) {
+        //TODO:
     }
 }
