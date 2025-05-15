@@ -2,9 +2,12 @@
 use std::io::Write;
 use std::time::Instant;
 
-use ai::a_star::{AStarPathFinder, debug_path_drawer::PathDrawer};
+use ai::pathfinding;
+use ai::pathfinding::debug_path_drawer::PathDrawer;
 use log::info;
 use math::Pos;
+use world::structures::shop::ShopType;
+use world::world_map::TileType;
 //TODO: remove the code above
 use world::World;
 
@@ -34,13 +37,49 @@ fn main() {
 
     let timer = Instant::now();
 
-    let path_finder = AStarPathFinder::new(&world.map, start, end);
-
-    let path = path_finder.a_star();
+    let path = pathfinding::a_star(&world.map, start, end);
 
     if let Some(path) = path {
         info!(
             "Path found in {} ms",
+            timer.elapsed().as_micros() as f32 / 1e3
+        );
+
+        let map_drawer = PathDrawer {
+            map: &world.map,
+            path: &path,
+        };
+
+        info!("\n{}", map_drawer);
+    };
+
+    let path = pathfinding::breadth_first_closest(&world.map, start, &TileType::Road, true, false);
+
+    if let Some(path) = path {
+        info!(
+            "Object found in {} ms",
+            timer.elapsed().as_micros() as f32 / 1e3
+        );
+
+        let map_drawer = PathDrawer {
+            map: &world.map,
+            path: &path,
+        };
+
+        info!("\n{}", map_drawer);
+    };
+
+    let path = pathfinding::breadth_first_closest(
+        &world.map,
+        start,
+        &TileType::Structure(ShopType::Woodcutter),
+        true,
+        true,
+    );
+
+    if let Some(path) = path {
+        info!(
+            "Object found in {} ms",
             timer.elapsed().as_micros() as f32 / 1e3
         );
 

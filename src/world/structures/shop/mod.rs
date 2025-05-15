@@ -1,5 +1,6 @@
 use crate::world::{inventory::Inventory, workers::Worker, world_map::WorldMap};
 
+pub mod store;
 pub mod woodcutter;
 
 #[derive(Clone)]
@@ -16,11 +17,14 @@ pub struct Shop {
     pub shop_type: ShopType,
 }
 
-#[derive(Clone)]
+//TODO: make shop type enum with data, have shared properties in Shop, and custom logic in
+//ShopType, e.g. ShopType(MainHearth)
+
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ShopType {
     Woodcutter,
     Herbalist,
-    //TODO: more
+    Store, //TODO: more
 }
 
 impl Shop {

@@ -2,18 +2,39 @@ use std::{char, fmt::Display};
 
 use crate::math::Pos;
 
+use super::structures::shop::ShopType;
+
 #[derive(Clone)]
 pub struct WorldMap {
     pub map: Vec<Vec<TileType>>,
 }
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Default)]
 pub enum TileType {
     #[default]
     Empty,
+    MainHearth,
     Road,
-    Structure, //TODO: maybe ref a structure
-    Tree,      //TODO: maybe trees are different
-               //TODO: more
+    Structure(ShopType),
+    Tree,
+    Resource,
+}
+
+impl TileType {
+    pub fn is_match(&self, other: &Self, exact: bool) -> bool {
+        match (self, other) {
+            (Self::Structure(l0), Self::Structure(r0)) => !exact || (l0 == r0),
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+
+impl PartialEq for TileType {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Structure(l0), Self::Structure(r0)) => l0 == r0,
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
 }
 
 impl WorldMap {
@@ -49,10 +70,10 @@ impl WorldMap {
 
     /// sets the rectangular region as containing a structure. You MUST call can_build first, or
     /// you are risking a panic or invalid game state
-    pub fn build(&mut self, x: usize, y: usize, width: u8, height: u8) {
+    pub fn build(&mut self, x: usize, y: usize, width: u8, height: u8, tile_type: TileType) {
         for h in 0..height {
             for w in 0..width {
-                self.map[y + h as usize][x + w as usize] = TileType::Structure;
+                self.map[y + h as usize][x + w as usize] = tile_type.clone();
             }
         }
     }
@@ -78,20 +99,36 @@ impl WorldMap {
 
     pub fn get_cost(&self, pos: &Pos) -> f32 {
         match self.map[pos.y][pos.x] {
-            crate::world::world_map::TileType::Empty => 1.0,
-            crate::world::world_map::TileType::Road => 0.7,
-            crate::world::world_map::TileType::Structure => 10.0,
-            crate::world::world_map::TileType::Tree => 10.0,
+            TileType::Empty => 1.0,
+            TileType::Resource => 2.0,
+            TileType::MainHearth => 10.0,
+            TileType::Road => 0.7,
+            TileType::Structure(_) => 10.0,
+            TileType::Tree => 10.0,
         }
     }
 
     pub fn is_traversible(&self, pos: &Pos) -> bool {
         match self.map[pos.y][pos.x] {
-            crate::world::world_map::TileType::Empty => true,
-            crate::world::world_map::TileType::Road => true,
-            crate::world::world_map::TileType::Structure => false,
-            crate::world::world_map::TileType::Tree => false,
+            TileType::Empty => true,
+            TileType::Resource => true,
+            TileType::MainHearth => false,
+            TileType::Road => true,
+            TileType::Structure(_) => false,
+            TileType::Tree => false,
         }
+    }
+
+    pub fn get(&self, pos: &Pos) -> &TileType {
+        &self.map[pos.y][pos.x]
+    }
+
+    pub fn within_bounds(&self, pos: &Pos) -> bool {
+        pos.x > 0 && pos.x < self.width() && pos.y > 0 && pos.y < self.height()
+    }
+
+    pub fn is_match(&self, pos: &Pos, tile_type: &TileType, exact: bool) -> bool {
+        self.map[pos.y][pos.x].is_match(tile_type, exact)
     }
 }
 
@@ -123,8 +160,14 @@ impl TileType {
     pub fn to_char(&self) -> &str {
         match self {
             TileType::Empty => "  ",
+            TileType::Resource => " ",
+            TileType::MainHearth => " ",
             TileType::Road => " ",
-            TileType::Structure => " ",
+            TileType::Structure(shop_type) => match shop_type {
+                ShopType::Woodcutter => "󰣈 ",
+                ShopType::Herbalist => "󰧻󱔐",
+                ShopType::Store => "󰾁 ",
+            },
             TileType::Tree => " ",
         }
     }

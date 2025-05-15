@@ -1,7 +1,5 @@
 use log::info;
 
-use crate::ai::a_star;
-
 //I just had Rust implicilty copy this, without putting it back... so the actual value in enum was
 //never updated. Need to be careful with Copy
 #[derive(Debug, Clone)]

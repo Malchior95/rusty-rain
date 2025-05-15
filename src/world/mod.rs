@@ -2,6 +2,8 @@ use crate::world::structures::shop::Shop;
 use crate::{math::Pos, world::structures::hearth::Hearth};
 use std::{array::from_fn, collections::LinkedList};
 
+use structures::Structure;
+use structures::shop::store;
 use workers::Worker;
 use world_map::{TileType, WorldMap};
 
@@ -40,6 +42,7 @@ impl World {
             main_hearth.pos.y,
             Hearth::WIDTH,
             Hearth::HEIGHT,
+            TileType::MainHearth,
         );
 
         let path = (3..11).map(|y| Pos::new(3, y));
@@ -68,6 +71,8 @@ impl World {
             };
         }
 
+        let built = store::build_store(&mut world, 11, 3);
+
         world
     }
 }
@@ -82,6 +87,10 @@ impl World {
         //    worker.process(delta);
         //}
 
-        self.main_hearth.process(delta);
+        self.main_hearth
+            .process(&mut self.map, &mut self.shops, delta);
+
+        //TODO: pop from front of the list of all shops, then invoke process with that item and the
+        //reminder of the list
     }
 }

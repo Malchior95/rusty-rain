@@ -2,6 +2,7 @@ use crate::world::{
     World,
     actions::{ChopWood, Rest},
     structures::shop::{Inventory, ShopType},
+    world_map::TileType,
 };
 
 use super::Shop;
@@ -28,7 +29,13 @@ impl Shop {
             shop_type: ShopType::Woodcutter,
         };
 
-        world.map.build(x, y, WIDTH, HEIGHT);
+        world.map.build(
+            x,
+            y,
+            WIDTH,
+            HEIGHT,
+            TileType::Structure(ShopType::Woodcutter),
+        );
 
         world.shops.push_back(woodcutter);
 
