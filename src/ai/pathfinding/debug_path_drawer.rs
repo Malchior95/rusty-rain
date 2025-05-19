@@ -7,7 +7,10 @@ pub struct PathDrawer<'a> {
     pub path: &'a Vec<Pos>,
 }
 impl<'a> PathDrawer<'a> {
-    fn get_path_marker(&self, pos: &Pos) -> &str {
+    fn get_path_marker(
+        &self,
+        pos: &Pos,
+    ) -> &str {
         let current_index = self.path.iter().position(|x| x == pos);
         const DEFAULT_MARKER: &str = "\u{f29f} ";
         match current_index {
@@ -35,16 +38,12 @@ impl<'a> PathDrawer<'a> {
             None => DEFAULT_MARKER,
         }
     }
-    fn number_steps(&self, pos: &Pos) -> String {
-        let maybe_index = self.path.iter().position(|x| x == pos);
-        if let Some(index) = maybe_index {
-            return format!("{:2}", index);
-        }
-        "..".to_string()
-    }
 }
 impl<'a> Display for PathDrawer<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         if self.map.width() < 100 {
             if self.map.height() < 100 {
                 write!(f, "  ")?;

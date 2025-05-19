@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use strum_macros::Display;
+
 pub struct Inventory {
     pub input: HashMap<InventoryItem, f32>,
     pub output: HashMap<InventoryItem, f32>,
@@ -16,7 +18,7 @@ impl Default for Inventory {
     }
 }
 
-#[derive(Hash, PartialEq, Eq, Copy, Clone)]
+#[derive(Hash, PartialEq, Eq, Copy, Clone, Display)]
 pub enum InventoryItem {
     Wood,
     Resin,

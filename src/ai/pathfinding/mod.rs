@@ -11,12 +11,10 @@ use crate::{math::Pos, world::world_map::WorldMap};
 
 const HEURISTICS_INFLUENCE: f32 = 0.5;
 
-pub fn breadth_first_closest(
+pub fn breadth_first_closest_nontraversible(
     map: &WorldMap,
     start: Pos,
     tile_type: &TileType,
-    exact: bool,
-    include_non_traversible: bool,
 ) -> Option<Vec<Pos>> {
     let mut frontier: LinkedList<Pos> = LinkedList::new();
     frontier.push_front(start);
@@ -29,14 +27,13 @@ pub fn breadth_first_closest(
         //if frontier is empty
 
         //found 'end'
-        //TODO: handle situation where 'end' is a building - would not be able to move there, but
-        //still need to accept the path
-        if map.get(&current).is_match(tile_type, exact) {
-            return Some(build_path(&came_from, current, map));
+        if let Some(final_tile) = get_nearby(map, &current, tile_type) {
+            came_from.insert(final_tile, Some(current));
+            return Some(build_path(&came_from, final_tile, map));
         }
 
         //continue search
-        for next in get_neighbours(map, &current, include_non_traversible) {
+        for next in get_neighbours(map, &current) {
             if !came_from.contains_key(&next) {
                 frontier.push_back(next);
 
@@ -48,7 +45,11 @@ pub fn breadth_first_closest(
     None
 }
 
-pub fn a_star(map: &WorldMap, start: Pos, end: Pos) -> Option<Vec<Pos>> {
+pub fn a_star(
+    map: &WorldMap,
+    start: Pos,
+    end: Pos,
+) -> Option<Vec<Pos>> {
     let start_cost = WithPriority::default(start);
 
     let mut frontier: BinaryHeap<WithPriority<Pos>> = BinaryHeap::new();
@@ -72,8 +73,8 @@ pub fn a_star(map: &WorldMap, start: Pos, end: Pos) -> Option<Vec<Pos>> {
         }
 
         //continue search
-        for next in get_neighbours(map, &current, false) {
-            let cost = cost_so_far[&current] + map.get_cost(&next);
+        for next in get_neighbours(map, &current) {
+            let cost = cost_so_far[&current] + map.get(&next).cost();
 
             let cost_exists = cost_so_far.contains_key(&next);
 
@@ -95,7 +96,11 @@ pub fn a_star(map: &WorldMap, start: Pos, end: Pos) -> Option<Vec<Pos>> {
     None
 }
 
-fn build_path(came_from: &HashMap<Pos, Option<Pos>>, end: Pos, map: &WorldMap) -> Vec<Pos> {
+fn build_path(
+    came_from: &HashMap<Pos, Option<Pos>>,
+    end: Pos,
+    map: &WorldMap,
+) -> Vec<Pos> {
     let mut path = Vec::<Pos>::new();
     let mut current = Some(end);
     while current.is_some() {
@@ -113,35 +118,57 @@ fn build_path(came_from: &HashMap<Pos, Option<Pos>>, end: Pos, map: &WorldMap) -
     path
 }
 
-fn heuristic(a: &Pos, b: &Pos) -> f32 {
+fn heuristic(
+    a: &Pos,
+    b: &Pos,
+) -> f32 {
     //assumes square grid
     //TODO: explore diagonal movement...
     let base = (a.x as f32 - b.x as f32).abs() + (a.y as f32 - b.y as f32).abs();
     base * HEURISTICS_INFLUENCE
 }
 
-fn get_neighbours(map: &WorldMap, pos: &Pos, include_non_traversible: bool) -> Vec<Pos> {
+fn get_neighbours(
+    map: &WorldMap,
+    pos: &Pos,
+) -> Vec<Pos> {
     let ret = [
-        Pos {
-            x: pos.x - 1,
-            y: pos.y,
-        },
-        Pos {
-            x: pos.x,
-            y: pos.y + 1,
-        },
-        Pos {
-            x: pos.x + 1,
-            y: pos.y,
-        },
-        Pos {
-            x: pos.x,
-            y: pos.y - 1,
-        },
+        Pos { x: pos.x - 1, y: pos.y },
+        Pos { x: pos.x, y: pos.y + 1 },
+        Pos { x: pos.x + 1, y: pos.y },
+        Pos { x: pos.x, y: pos.y - 1 },
     ];
-    let valid = ret
-        .iter()
-        .filter(|&x| map.within_bounds(x) && (map.is_traversible(x) || include_non_traversible));
+    let valid = ret.iter().filter(|&x| map.within_bounds(x) && (map.get(x).is_traversible()));
 
     valid.cloned().collect()
+}
+
+fn borders_tile(
+    map: &WorldMap,
+    pos: &Pos,
+    tile_type: &TileType,
+) -> bool {
+    let ret = [
+        Pos { x: pos.x - 1, y: pos.y },
+        Pos { x: pos.x, y: pos.y + 1 },
+        Pos { x: pos.x + 1, y: pos.y },
+        Pos { x: pos.x, y: pos.y - 1 },
+    ];
+    let valid = ret.iter().filter(|&x| map.within_bounds(x));
+    valid.map(|p| map.get(p)).any(|t| t == tile_type)
+}
+
+fn get_nearby(
+    map: &WorldMap,
+    pos: &Pos,
+    tile_type: &TileType,
+) -> Option<Pos> {
+    let ret = [
+        Pos { x: pos.x - 1, y: pos.y },
+        Pos { x: pos.x, y: pos.y + 1 },
+        Pos { x: pos.x + 1, y: pos.y },
+        Pos { x: pos.x, y: pos.y - 1 },
+    ];
+    let valid = ret.iter().filter(|&x| map.within_bounds(x));
+    valid.filter(|t| map.get(*t) == tile_type).nth(0).copied()
 }

@@ -22,19 +22,18 @@ pub struct World {
 }
 
 impl World {
-    pub fn new_test(width: usize, height: usize) -> Self {
+    pub fn new_test(
+        width: usize,
+        height: usize,
+    ) -> Self {
         let mut map = WorldMap::new_test(width, height);
 
         //this is cleaver! Note that 5 in type annotations is an array size!
         let unassigned_workers = LinkedList::from(from_fn::<Worker, 5, _>(|_| Worker::default()));
 
         //draw road
-        (3..7)
-            .map(|y| Pos::new(3, y))
-            .for_each(|p| map.map[p.y][p.x] = TileType::Road);
-        (3..8)
-            .map(|x| Pos::new(x, 6))
-            .for_each(|p| map.map[p.y][p.x] = TileType::Road);
+        (3..7).map(|y| Pos::new(3, y)).for_each(|p| map.map[p.y][p.x] = TileType::Road);
+        (3..8).map(|x| Pos::new(x, 6)).for_each(|p| map.map[p.y][p.x] = TileType::Road);
 
         let mut world = World {
             map,
@@ -52,25 +51,21 @@ impl World {
             }
         }
 
-        //let built = Woodcutter::build(&mut world, Pos::new(11, 3));
+        let built = Woodcutter::build(&mut world, Pos::new(11, 4));
 
-        //if built {
-        //    if let ShopType::Woodcutter(woodcutter) = &mut world.shops.back_mut().unwrap().shop_type
-        //    {
-        //        let worker = world.unassigned_workers.pop_back().unwrap();
-        //        woodcutter.assign_worker(worker);
-        //        let worker = world.unassigned_workers.pop_back().unwrap();
-        //        woodcutter.assign_worker(worker);
-        //    }
-        //}
+        if built {
+            if let ShopType::Woodcutter(woodcutter) = &mut world.shops.back_mut().unwrap().shop_type {
+                let worker = world.unassigned_workers.pop_back().unwrap();
+                woodcutter.assign_worker(worker);
+                woodcutter.inventory.output.insert(InventoryItem::Wood, 10.0);
+            }
+        }
 
         let built = Store::build(&mut world, Pos::new(4, 3));
 
         if built {
             if let ShopType::MainStore(store) = &mut world.shops.back_mut().unwrap().shop_type {
-                let worker = world.unassigned_workers.pop_back().unwrap();
-
-                store.inventory.insert(InventoryItem::Wood, 100.0);
+                store.inventory.insert(InventoryItem::Wood, 30.0);
             }
         }
 
@@ -79,7 +74,10 @@ impl World {
 }
 
 impl World {
-    pub fn next_tick(&mut self, delta: f32) {
+    pub fn next_tick(
+        &mut self,
+        delta: f32,
+    ) {
         //when processing shops, I cannot just pass the list of all shops to shop, as that would
         //contain double reference to the same object (which is not allowed in rust)
         //I need to pop item from the queue first, and can then safely pass list of all rmaining

@@ -1,3 +1,6 @@
 max_width = 160
 
 fn_params_layout = "Vertical"
+
+imports_layout = "Vertical"
+

@@ -7,7 +7,7 @@ use crate::{
     math::Pos,
     world::{
         World,
-        actions::{ActionResult, BasicAction, HaulAction, HaulActionResult},
+        actions::{ActionResult, BasicAction, supply_action::SupplyAction},
         inventory::InventoryItem,
         structures::{Shop, ShopType, ShopTypeDiscriminants, Structure},
         workers::Worker,
@@ -30,13 +30,7 @@ pub struct HearthWorker {
 pub enum HearthWorkerAction {
     #[default]
     Idle,
-    Haul(HaulAction),
-}
-
-impl HearthWorkerAction {
-    fn take(&mut self) -> HearthWorkerAction {
-        std::mem::replace(self, HearthWorkerAction::Idle)
-    }
+    Haul(SupplyAction),
 }
 
 #[derive(Default)]
@@ -108,7 +102,7 @@ impl Hearth {
 
         let maybe_new_action = match &mut self.action {
             HearthAction::Burning(burning) => process_burning(burning, delta),
-            HearthAction::Idle => process_idle(&mut self.inventory, self.hearth_worker.is_some(), delta),
+            HearthAction::Idle => process_idle(&mut self.inventory, self.hearth_worker.is_some()),
         };
 
         if let Some(new_action) = maybe_new_action {
@@ -135,7 +129,7 @@ fn process_worker_fuel_haul(
     }
 
     let maybe_new_action = match &mut worker.action {
-        HearthWorkerAction::Idle => worker_start_hauling(structure, map, shops, delta),
+        HearthWorkerAction::Idle => worker_start_hauling(structure, map, shops),
         HearthWorkerAction::Haul(haul_data) => worker_continue_hauling(inventory, haul_data, delta),
     };
 
@@ -160,7 +154,7 @@ fn process_burning(
 fn process_idle(
     inventory: &mut HashMap<InventoryItem, f32>,
     has_worker: bool,
-    delta: f32,
+    //delta: f32,
 ) -> Option<HearthAction> {
     //this is weird... why do I need to dereference a float?
     let wood = *inventory.get(&InventoryItem::Wood).unwrap_or(&0.0);
@@ -186,9 +180,9 @@ fn worker_start_hauling(
     structure: &Structure,
     map: &WorldMap,
     shops: &mut LinkedList<Shop>,
-    delta: f32,
+    //delta: f32,
 ) -> Option<HearthWorkerAction> {
-    info!("Worker wants to start hauling!");
+    info!("Worker wants to start supplying 10 wood!");
     //TODO: for now - return main store. In the future maybe search the closest store? Maybe
     //search woodcutters, if closer?
     let (store, position) = shops.iter_mut().find_map(|s| {
@@ -198,43 +192,21 @@ fn worker_start_hauling(
         None
     })?;
 
-    let store_wood_supply = store.inventory.get(&InventoryItem::Wood).unwrap_or(&0.0);
-
-    if store_wood_supply < &10.0 {
-        info!("no wood in store!");
-        return None; //cannot haul if no wood
-    }
-
-    let path = pathfinding::a_star(map, structure.enterance, position)?;
-
-    //update store - items are 'reserved', thus already remove them and store in the action
-    store.inventory.insert(InventoryItem::Wood, *store_wood_supply - 10.0);
-
-    //TODO: should I call process already? This implies waiting 1 frame...
-    //but what if the action already finishes??? Then I would need to handle that
-
-    info!("Worker started hauling!");
-
-    let haul_action = HaulAction::new(path, map, HashMap::from_iter([(InventoryItem::Wood, 10.0)]));
+    let haul_action = SupplyAction::new(structure.enterance, position, map, HashMap::from_iter([(InventoryItem::Wood, 10.0)]), store)?;
 
     Some(HearthWorkerAction::Haul(haul_action))
 }
 
 fn worker_continue_hauling(
     inventory: &mut HashMap<InventoryItem, f32>,
-    haul_data: &mut HaulAction,
+    haul_data: &mut SupplyAction,
     delta: f32,
 ) -> Option<HearthWorkerAction> {
-    let result = haul_data.process(delta);
+    let result = haul_data.process(inventory, delta);
 
     if let ActionResult::InProgress = result {
         return None; //continue hauling - do not change state
     }
 
-    //action completed - move items to inventory
-    for (key, items) in haul_data.inventory.drain() {
-        let own_items = inventory.get(&key).unwrap_or(&0.0);
-        inventory.insert(key, *own_items + items);
-    }
     Some(HearthWorkerAction::Idle)
 }

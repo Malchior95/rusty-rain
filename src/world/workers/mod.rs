@@ -19,7 +19,10 @@ impl Worker {
         todo!()
     }
 
-    pub(crate) fn process(&mut self, delta: f32) {
+    pub(crate) fn process(
+        &mut self,
+        delta: f32,
+    ) {
         todo!()
     }
 }

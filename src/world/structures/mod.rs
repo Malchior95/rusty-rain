@@ -4,10 +4,7 @@ pub mod shop;
 use shop::{hearth::Hearth, store::Store, woodcutter::Woodcutter};
 use strum_macros::{EnumDiscriminants, EnumIs};
 
-use crate::{
-    math::Pos,
-    world::{inventory::Inventory, workers::Worker, world_map::WorldMap},
-};
+use crate::{math::Pos, world::world_map::WorldMap};
 
 pub struct Shop {
     //pub workers: Vec<Worker>,
@@ -42,14 +39,15 @@ pub enum ShopType {
 }
 
 impl Shop {
-    pub(crate) fn process(&mut self, map: &mut WorldMap, shops: &mut LinkedList<Shop>, delta: f32) {
+    pub(crate) fn process(
+        &mut self,
+        map: &mut WorldMap,
+        shops: &mut LinkedList<Shop>,
+        delta: f32,
+    ) {
         match self.shop_type {
-            ShopType::MainHearth(ref mut hearth) => {
-                hearth.process(&self.structure, map, shops, delta)
-            }
-            ShopType::Woodcutter(ref mut woodcutter) => {
-                woodcutter.process(&self.structure, map, shops, delta)
-            }
+            ShopType::MainHearth(ref mut hearth) => hearth.process(&self.structure, map, shops, delta),
+            ShopType::Woodcutter(ref mut woodcutter) => woodcutter.process(&self.structure, map, shops, delta),
             ShopType::MainStore(_) => {} //currently no update necessary...
         }
     }

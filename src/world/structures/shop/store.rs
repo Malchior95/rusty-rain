@@ -1,17 +1,14 @@
-use std::{
-    collections::{HashMap, LinkedList},
-    default,
-};
+use std::collections::HashMap;
+
+use log::info;
 
 use crate::{
     math::Pos,
     world::{
         World,
-        actions::{GatherResourceAction, HaulAction},
-        inventory::{Inventory, InventoryItem},
+        inventory::InventoryItem,
         structures::{Shop, ShopType, ShopTypeDiscriminants, Structure},
-        workers::Worker,
-        world_map::{TileType, WorldMap},
+        world_map::TileType,
     },
 };
 
@@ -19,27 +16,16 @@ pub struct Store {
     pub inventory: HashMap<InventoryItem, f32>,
 }
 
-pub struct StoreWorker {
-    pub worker: Worker,
-}
-
-#[derive(Default)]
-pub enum StoreWorkerAction {
-    #[default]
-    Idle,
-    Haul(HaulAction),
-    GatherResouce(GatherResourceAction),
-}
-
 impl Store {
-    pub fn build(world: &mut World, pos: Pos) -> bool {
+    pub fn build(
+        world: &mut World,
+        pos: Pos,
+    ) -> bool {
         if !world.map.can_build(pos.x, pos.y, Self::WIDTH, Self::HEIGHT) {
             return false;
         }
 
-        let woodcutter = Self {
-            inventory: HashMap::new(),
-        };
+        let woodcutter = Self { inventory: HashMap::new() };
 
         //FIXME: check if enterance is accessible...
 
@@ -57,23 +43,56 @@ impl Store {
 
         world.shops.push_back(shop);
 
-        world
-            .map
-            .build(pos.x, pos.y, Self::WIDTH, Self::HEIGHT, || {
-                TileType::Structure(ShopTypeDiscriminants::MainStore)
-            });
+        world.map.build(pos.x, pos.y, Self::WIDTH, Self::HEIGHT, || {
+            TileType::Structure(ShopTypeDiscriminants::MainStore)
+        });
         return true;
     }
 
-    pub fn process(
+    pub fn add(
         &mut self,
-        structure: &Structure,
-        map: &mut WorldMap,
-        shops: &LinkedList<Shop>,
-        delta: f32,
+        item: InventoryItem,
+        amount: f32,
     ) {
-        //TODO:
+        let current = self.inventory.get(&item).unwrap_or(&0.0);
+
+        info!("Added {} to the store. Current amount: {}", item, *current + amount);
+        self.inventory.insert(item, *current + amount);
     }
+
+    pub fn can_take(
+        &self,
+        item: &InventoryItem,
+        amount: f32,
+    ) -> bool {
+        let current = self.inventory.get(item).unwrap_or(&0.0);
+        *current > amount
+    }
+
+    pub fn take(
+        &mut self,
+        item: InventoryItem,
+        amount: f32,
+    ) {
+        let current = self.inventory.get(&item).unwrap_or(&0.0);
+        if !self.can_take(&item, amount) {
+            panic!();
+        }
+
+        info!("Removed {} from the store. Current amount: {}", item, *current - amount);
+
+        self.inventory.insert(item, *current - amount);
+    }
+
+    //pub fn process(
+    //    &mut self,
+    //    structure: &Structure,
+    //    map: &mut WorldMap,
+    //    shops: &LinkedList<Shop>,
+    //    delta: f32,
+    //) {
+    //    //TODO: store does not need processing for now
+    //}
 
     pub const WIDTH: u8 = 4;
     pub const HEIGHT: u8 = 3;

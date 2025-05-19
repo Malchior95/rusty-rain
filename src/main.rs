@@ -1,14 +1,8 @@
-#![allow(dead_code, unused_variables, unused_imports)]
 use std::io::Write;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
-use ai::pathfinding;
-use ai::pathfinding::debug_path_drawer::PathDrawer;
 use log::info;
-use math::Pos;
-use world::structures::{ShopType, ShopTypeDiscriminants};
-use world::world_map::TileType;
-//TODO: remove the code above
 use world::World;
 
 mod ai;
@@ -16,13 +10,12 @@ mod data_helpers;
 mod math;
 mod world;
 
-static mut FRAME_NUM: u32 = 0;
+static FRAME_NUM: AtomicUsize = AtomicUsize::new(0);
 
 fn main() {
     env_logger::builder()
         .format(|buf, record| {
-            writeln!(buf, "@{}\t{}", unsafe { FRAME_NUM }, record.args())?;
-            //
+            writeln!(buf, "@{}\t{}", FRAME_NUM.load(Ordering::Relaxed), record.args())?;
             Ok(())
         })
         .init();
@@ -38,15 +31,12 @@ fn main() {
     let mut seconds = 0.0;
     const DELTA: f32 = 1.0 / 30.0;
     while seconds < 120.0 {
-        unsafe {
-            FRAME_NUM += 1;
-        }
+        FRAME_NUM.fetch_add(1, Ordering::Relaxed);
+
         world.next_tick(DELTA);
         seconds += DELTA;
     }
 
-    info!(
-        "Simulation took: {} ms",
-        timer.elapsed().as_micros() as f32 / 1e3
-    );
+    info!("Simulation took: {} ms", timer.elapsed().as_micros() as f32 / 1e3);
+    println!("Simulation took: {} ms", timer.elapsed().as_micros() as f32 / 1e3);
 }
