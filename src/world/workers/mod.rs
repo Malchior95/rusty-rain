@@ -1,14 +1,11 @@
 use rand::{rng, seq::IndexedRandom};
 
-#[derive(Clone)]
 pub struct Worker {
     pub name: String,
     pub worker_type: WorkerType,
 }
 
-#[derive(Default, Clone, Copy)]
 pub enum WorkerType {
-    #[default]
     Human,
     Beaver,
     //TODO: more
@@ -33,7 +30,7 @@ impl Default for Worker {
         let l_name = Worker::LAST_NAMES.choose(&mut rng()).unwrap();
         Self {
             name: format!("{} {}", f_name, l_name),
-            worker_type: Default::default(),
+            worker_type: WorkerType::Human,
         }
     }
 }

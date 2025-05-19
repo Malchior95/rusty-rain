@@ -1,9 +1,11 @@
-use crate::world::structures::shop::Shop;
-use crate::{math::Pos, world::structures::hearth::Hearth};
+use crate::math::Pos;
 use std::{array::from_fn, collections::LinkedList};
 
-use structures::Structure;
-use structures::shop::store;
+use inventory::InventoryItem;
+use structures::{
+    Shop, ShopType,
+    shop::{hearth::Hearth, store::Store, woodcutter::Woodcutter},
+};
 use workers::Worker;
 use world_map::{TileType, WorldMap};
 
@@ -16,7 +18,6 @@ pub mod world_map;
 pub struct World {
     pub map: WorldMap,
     pub shops: LinkedList<Shop>,
-    pub main_hearth: Hearth,
     pub unassigned_workers: LinkedList<Worker>,
 }
 
@@ -25,53 +26,53 @@ impl World {
         let mut map = WorldMap::new_test(width, height);
 
         //this is cleaver! Note that 5 in type annotations is an array size!
-        let mut unassigned_workers =
-            LinkedList::from(from_fn::<Worker, 5, _>(|_| Worker::default()));
-        let worker = unassigned_workers.pop_front();
+        let unassigned_workers = LinkedList::from(from_fn::<Worker, 5, _>(|_| Worker::default()));
 
-        let main_hearth = Hearth::new(
-            Pos {
-                x: width / 2,
-                y: height / 2,
-            },
-            worker.unwrap(),
-        );
-
-        map.build(
-            main_hearth.pos.x,
-            main_hearth.pos.y,
-            Hearth::WIDTH,
-            Hearth::HEIGHT,
-            TileType::MainHearth,
-        );
-
-        let path = (3..11).map(|y| Pos::new(3, y));
-
-        path.for_each(|p| map.map[p.y][p.x] = TileType::Road);
+        //draw road
+        (3..7)
+            .map(|y| Pos::new(3, y))
+            .for_each(|p| map.map[p.y][p.x] = TileType::Road);
+        (3..8)
+            .map(|x| Pos::new(x, 6))
+            .for_each(|p| map.map[p.y][p.x] = TileType::Road);
 
         let mut world = World {
             map,
             shops: LinkedList::new(),
-            main_hearth,
             unassigned_workers,
         };
 
-        let built = Shop::build_woodcutter(&mut world, 4, 4);
+        let built = Hearth::build(&mut world, Pos::new(width / 2, height / 2));
 
         if built {
-            //assign two woodcutters
-            if let Some(mut woodcutter) = world.shops.pop_back() {
-                if let Some(worker) = world.unassigned_workers.pop_front() {
-                    woodcutter.assign_worker(worker);
-                }
-                if let Some(worker) = world.unassigned_workers.pop_front() {
-                    woodcutter.assign_worker(worker);
-                }
-                world.shops.push_back(woodcutter);
-            };
+            if let ShopType::MainHearth(hearth) = &mut world.shops.back_mut().unwrap().shop_type {
+                let worker = world.unassigned_workers.pop_back().unwrap();
+
+                hearth.assign_worker(worker);
+            }
         }
 
-        let built = store::build_store(&mut world, 11, 3);
+        //let built = Woodcutter::build(&mut world, Pos::new(11, 3));
+
+        //if built {
+        //    if let ShopType::Woodcutter(woodcutter) = &mut world.shops.back_mut().unwrap().shop_type
+        //    {
+        //        let worker = world.unassigned_workers.pop_back().unwrap();
+        //        woodcutter.assign_worker(worker);
+        //        let worker = world.unassigned_workers.pop_back().unwrap();
+        //        woodcutter.assign_worker(worker);
+        //    }
+        //}
+
+        let built = Store::build(&mut world, Pos::new(4, 3));
+
+        if built {
+            if let ShopType::MainStore(store) = &mut world.shops.back_mut().unwrap().shop_type {
+                let worker = world.unassigned_workers.pop_back().unwrap();
+
+                store.inventory.insert(InventoryItem::Wood, 100.0);
+            }
+        }
 
         world
     }
@@ -79,26 +80,13 @@ impl World {
 
 impl World {
     pub fn next_tick(&mut self, delta: f32) {
-        //for shop in &mut self.shops {
-        //    shop.process(&mut self.map, delta);
-        //}
-
-        //for worker in &mut self.unassigned_workers {
-        //    worker.process(delta);
-        //}
-
-        //TODO: main hearth should be just a shop - see shop class for other TODO
-
-        self.main_hearth
-            .process(&mut self.map, &mut self.shops, delta);
-
         //when processing shops, I cannot just pass the list of all shops to shop, as that would
         //contain double reference to the same object (which is not allowed in rust)
         //I need to pop item from the queue first, and can then safely pass list of all rmaining
         //shops to it's process function. I then place the shop back in the queue
         for _ in 0..self.shops.len() {
             let mut shop = self.shops.pop_front().unwrap();
-            shop.process(&mut self.map, &self.shops, delta);
+            shop.process(&mut self.map, &mut self.shops, delta);
             self.shops.push_back(shop);
         }
     }

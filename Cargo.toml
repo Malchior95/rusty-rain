@@ -7,3 +7,5 @@ edition = "2024"
 rand = "0.9.1" #use this sparingly, only to initialize some data. Simulation must be deterministic
 log = "0.4.27"
 env_logger = "0.11.8"
+strum = "0.27.1"
+strum_macros = "0.27.1"

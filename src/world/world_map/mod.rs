@@ -1,20 +1,27 @@
-use std::{char, fmt::Display};
+use std::{char, fmt::Display, iter::from_fn};
+
+use strum::IntoDiscriminant;
+use strum_macros::{EnumDiscriminants, EnumIs};
 
 use crate::math::Pos;
 
-use super::structures::shop::ShopType;
+use super::structures::ShopTypeDiscriminants;
 
-#[derive(Clone)]
 pub struct WorldMap {
+    //TODO: in the future, I will definitelly want to have layers of the map - e.g. background with
+    //resources, bogs, lakes, and empty, and foreground with structures, trees, etc. Imagine
+    //building a structure on a resource and not delete it.
+    //TODO: maybe also a layer for systems> e.g. pipes, wires... like ONI!
     pub map: Vec<Vec<TileType>>,
+    //TODO: can I use an array?
+    //pub map: [[TileType; A]; B]
 }
-#[derive(Clone, Default)]
+#[derive(Default, EnumIs)]
 pub enum TileType {
     #[default]
     Empty,
-    MainHearth,
     Road,
-    Structure(ShopType),
+    Structure(ShopTypeDiscriminants),
     Tree,
     Resource,
 }
@@ -23,15 +30,6 @@ impl TileType {
     pub fn is_match(&self, other: &Self, exact: bool) -> bool {
         match (self, other) {
             (Self::Structure(l0), Self::Structure(r0)) => !exact || (l0 == r0),
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
-        }
-    }
-}
-
-impl PartialEq for TileType {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Structure(l0), Self::Structure(r0)) => l0 == r0,
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
     }
@@ -47,7 +45,9 @@ impl WorldMap {
     }
 
     pub fn new(width: usize, height: usize) -> WorldMap {
-        let tiles = vec![vec![TileType::Empty; width]; height];
+        let tiles = (0..height)
+            .map(|_| (0..width).map(|_| TileType::Empty).collect())
+            .collect();
         WorldMap { map: tiles }
     }
 
@@ -70,10 +70,14 @@ impl WorldMap {
 
     /// sets the rectangular region as containing a structure. You MUST call can_build first, or
     /// you are risking a panic or invalid game state
-    pub fn build(&mut self, x: usize, y: usize, width: u8, height: u8, tile_type: TileType) {
+    pub fn build<F>(&mut self, x: usize, y: usize, width: u8, height: u8, mut tile_type_factory: F)
+    where
+        F: FnMut() -> TileType,
+    {
+        //TODO: cloning occurs here. Can I disable cloning and create new items? How to do?
         for h in 0..height {
             for w in 0..width {
-                self.map[y + h as usize][x + w as usize] = tile_type.clone();
+                self.map[y + h as usize][x + w as usize] = tile_type_factory();
             }
         }
     }
@@ -89,7 +93,7 @@ impl WorldMap {
 
         for h in 0..height {
             for w in 0..width {
-                if self.map[y + h as usize][x + w as usize] != TileType::Empty {
+                if !self.map[y + h as usize][x + w as usize].is_empty() {
                     return false;
                 }
             }
@@ -101,7 +105,6 @@ impl WorldMap {
         match self.map[pos.y][pos.x] {
             TileType::Empty => 1.0,
             TileType::Resource => 2.0,
-            TileType::MainHearth => 10.0,
             TileType::Road => 0.7,
             TileType::Structure(_) => 10.0,
             TileType::Tree => 10.0,
@@ -112,7 +115,6 @@ impl WorldMap {
         match self.map[pos.y][pos.x] {
             TileType::Empty => true,
             TileType::Resource => true,
-            TileType::MainHearth => false,
             TileType::Road => true,
             TileType::Structure(_) => false,
             TileType::Tree => false,
@@ -129,6 +131,10 @@ impl WorldMap {
 
     pub fn is_match(&self, pos: &Pos, tile_type: &TileType, exact: bool) -> bool {
         self.map[pos.y][pos.x].is_match(tile_type, exact)
+    }
+
+    pub fn path_to_cost(&self, path: &Vec<Pos>) -> Vec<f32> {
+        path.iter().map(|p| self.get(p).cost()).collect()
     }
 }
 
@@ -161,14 +167,24 @@ impl TileType {
         match self {
             TileType::Empty => "  ",
             TileType::Resource => " ",
-            TileType::MainHearth => " ",
             TileType::Road => " ",
             TileType::Structure(shop_type) => match shop_type {
-                ShopType::Woodcutter => "󰣈 ",
-                ShopType::Herbalist => "󰧻󱔐",
-                ShopType::Store => "󰾁 ",
+                ShopTypeDiscriminants::MainHearth => " ",
+                ShopTypeDiscriminants::Woodcutter => "󰣈 ",
+                //ShopType::Herbalist => "󰧻󱔐",
+                ShopTypeDiscriminants::MainStore => "󰾁 ",
             },
             TileType::Tree => " ",
+        }
+    }
+
+    pub fn cost(&self) -> f32 {
+        match self {
+            TileType::Empty => 1.0,
+            TileType::Resource => 2.0,
+            TileType::Road => 0.7,
+            TileType::Structure(_) => 10.0,
+            TileType::Tree => 10.0,
         }
     }
 }

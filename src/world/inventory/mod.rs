@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-#[derive(Clone)]
 pub struct Inventory {
     pub input: HashMap<InventoryItem, f32>,
     pub output: HashMap<InventoryItem, f32>,
@@ -17,7 +16,7 @@ impl Default for Inventory {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Copy, Clone)]
 pub enum InventoryItem {
     Wood,
     Resin,

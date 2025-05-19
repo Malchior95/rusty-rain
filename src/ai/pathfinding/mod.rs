@@ -2,6 +2,9 @@ use std::collections::{BinaryHeap, HashMap, LinkedList};
 
 pub mod debug_path_drawer;
 
+use debug_path_drawer::PathDrawer;
+use log::info;
+
 use crate::data_helpers::with_priority::WithPriority;
 use crate::world::world_map::TileType;
 use crate::{math::Pos, world::world_map::WorldMap};
@@ -29,7 +32,7 @@ pub fn breadth_first_closest(
         //TODO: handle situation where 'end' is a building - would not be able to move there, but
         //still need to accept the path
         if map.get(&current).is_match(tile_type, exact) {
-            return Some(build_path(&came_from, current));
+            return Some(build_path(&came_from, current, map));
         }
 
         //continue search
@@ -65,7 +68,7 @@ pub fn a_star(map: &WorldMap, start: Pos, end: Pos) -> Option<Vec<Pos>> {
         //TODO: handle situation where 'end' is a building - would not be able to move there, but
         //still need to accept the path
         if current == end {
-            return Some(build_path(&came_from, end));
+            return Some(build_path(&came_from, end, map));
         }
 
         //continue search
@@ -92,7 +95,7 @@ pub fn a_star(map: &WorldMap, start: Pos, end: Pos) -> Option<Vec<Pos>> {
     None
 }
 
-fn build_path(came_from: &HashMap<Pos, Option<Pos>>, end: Pos) -> Vec<Pos> {
+fn build_path(came_from: &HashMap<Pos, Option<Pos>>, end: Pos, map: &WorldMap) -> Vec<Pos> {
     let mut path = Vec::<Pos>::new();
     let mut current = Some(end);
     while current.is_some() {
@@ -101,7 +104,13 @@ fn build_path(came_from: &HashMap<Pos, Option<Pos>>, end: Pos) -> Vec<Pos> {
         let next = came_from.get(&current_pos).unwrap();
         current = *next;
     }
-    Vec::from_iter(path.iter().copied().rev())
+    let path = path.iter().copied().rev().collect();
+
+    let map_drawer = PathDrawer { map, path: &path };
+
+    info!("\n{}", map_drawer);
+
+    path
 }
 
 fn heuristic(a: &Pos, b: &Pos) -> f32 {
@@ -134,5 +143,5 @@ fn get_neighbours(map: &WorldMap, pos: &Pos, include_non_traversible: bool) -> V
         .iter()
         .filter(|&x| map.within_bounds(x) && (map.is_traversible(x) || include_non_traversible));
 
-    Vec::from_iter(valid.cloned())
+    valid.cloned().collect()
 }
