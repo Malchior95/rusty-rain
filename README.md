@@ -12,7 +12,7 @@ Curently the base features of the game are being implemented, and still subject
 to change:
 
 - base world representation
-- base structure like hearth, store, gathering huts
+- base structures like hearth, store, gathering huts
 - base AI and pathfinding
 
 Currently not implemented, but should be the short-term focus:
