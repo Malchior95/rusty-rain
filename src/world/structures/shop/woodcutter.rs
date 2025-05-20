@@ -134,7 +134,7 @@ fn worker_continue_storing(
     //TODO: if no store - it means the store was destroyed! What do? For now - remain in the
     //current action, but do not progress
     //FIXME: how to ensure I find the same store that was ogirinally selected? Maybe check what
-    //building is at path's end?
+    //building is at path's end? better - introduce Ids and store id.
     let store = shops.iter_mut().find_map(|s| {
         if let ShopType::MainStore(store) = &mut s.shop_type {
             return Some(store);
