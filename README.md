@@ -3,7 +3,7 @@
 Against the Storm is an amazing game that single-handedly defined a new genre of
 roguelike citybuilders. I am making a demake of that game, called Rusty Rain.
 The name clearly indicates that the goal of this project is for me to learn Rust
-(I am a dotnet fullstack developer, so... good luck me). This Create encompases
+(I am a dotnet fullstack developer, so... good luck me). This Crate encompases
 the backend for the game. Please check rusty_rain_tui for a frontend
 implementation (presumably in ratatui, but I have barely started, so might not
 be available yet on github).
