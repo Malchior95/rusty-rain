@@ -1,10 +1,12 @@
 use std::fmt::Display;
 
-use strum_macros::{Display, EnumIs};
+use resources::{ResourceCharge, ResourceType};
+use strum_macros::{Display, EnumDiscriminants, EnumIs};
 
 use crate::math::Pos;
 
 use super::{inventory::InventoryItem, structures::ShopTypeDiscriminants};
+pub mod resources;
 
 pub struct WorldMap {
     //TODO: in the future, I will definitelly want to have layers of the map - e.g. background with
@@ -15,14 +17,14 @@ pub struct WorldMap {
     //TODO: can I use an array?
     //pub map: [[TileType; A]; B]
 }
-#[derive(Default, EnumIs, Display)]
+#[derive(Default, EnumIs, Display, EnumDiscriminants)]
 pub enum TileType {
     #[default]
     Empty,
     Road,
     Structure(ShopTypeDiscriminants),
-    Tree,
-    Resource(InventoryItem),
+    Tree(ResourceCharge),
+    Resource(ResourceType),
 }
 
 impl PartialEq for TileType {
@@ -32,6 +34,7 @@ impl PartialEq for TileType {
     ) -> bool {
         match (self, other) {
             (Self::Structure(l0), Self::Structure(r0)) => l0 == r0,
+            (Self::Resource(l0), Self::Resource(r0)) => l0 == r0,
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
     }
@@ -64,7 +67,11 @@ impl WorldMap {
         for y in 0..height {
             for x in 0..width {
                 if [0, 1, height - 2, height - 1].contains(&y) || [0, 1, width - 2, width - 1].contains(&x) {
-                    world.map[y][x] = TileType::Tree;
+                    world.map[y][x] = TileType::Tree(ResourceCharge {
+                        item_type: InventoryItem::Wood,
+                        total: 10.0,
+                        current: 10.0,
+                    });
                 }
             }
         }
@@ -124,6 +131,13 @@ impl WorldMap {
         &self.map[pos.y][pos.x]
     }
 
+    pub fn get_mut(
+        &mut self,
+        pos: &Pos,
+    ) -> &mut TileType {
+        &mut self.map[pos.y][pos.x]
+    }
+
     pub fn within_bounds(
         &self,
         pos: &Pos,
@@ -178,7 +192,7 @@ impl TileType {
                 //ShopType::Herbalist => "󰧻󱔐",
                 ShopTypeDiscriminants::MainStore => "󰾁 ",
             },
-            TileType::Tree => " ",
+            TileType::Tree(_) => " ",
         }
     }
 
@@ -188,7 +202,7 @@ impl TileType {
             TileType::Resource(_) => 2.0,
             TileType::Road => 0.7,
             TileType::Structure(_) => 10.0,
-            TileType::Tree => 10.0,
+            TileType::Tree(_) => 10.0,
         }
     }
 
@@ -198,7 +212,7 @@ impl TileType {
             TileType::Resource(_) => true,
             TileType::Road => true,
             TileType::Structure(_) => false,
-            TileType::Tree => false,
+            TileType::Tree(_) => false,
         }
     }
 }

@@ -7,7 +7,7 @@ use crate::{
     math::Pos,
     world::{
         inventory::InventoryItem,
-        world_map::{TileType, WorldMap},
+        world_map::{TileType, WorldMap, resources::ResourceType},
     },
 };
 
@@ -18,26 +18,31 @@ pub struct GatherResourcesAction {
     pub gathering_cost: f32,
     pub path: Vec<Pos>,
     pub inventory: HashMap<InventoryItem, f32>,
-    pub tile_type: TileType,
     internal_state: GatherResourceInternalAction,
 }
 
-pub enum GatherResourceInternalAction {
+enum GatherResourceInternalAction {
     Go(BasicAction),
     Gather(BasicAction),
     Return(BasicAction),
 }
 
 impl GatherResourcesAction {
-    pub fn new(
+    pub fn new<F>(
         from: Pos,
         map: &WorldMap,
         gathering_cost: f32,
-        tile_type: TileType,
-    ) -> Option<Self> {
+        tile_type_check: F,
+    ) -> Option<Self>
+    where
+        F: Fn(&TileType) -> bool,
+    {
         info!("Worker wants to gather resources!");
 
-        let path = pathfinding::breadth_first_closest_nontraversible(map, from, &tile_type)?;
+        let path = pathfinding::breadth_first_closest_nontraversible(map, from, &tile_type_check)?;
+        if path.is_empty() {
+            return None;
+        }
         let path_cost = map.path_to_cost(&path);
         let total_cost = path_cost.iter().sum::<f32>();
 
@@ -47,19 +52,19 @@ impl GatherResourcesAction {
             path,
             inventory: HashMap::new(),
             internal_state: GatherResourceInternalAction::Go(BasicAction::new(total_cost)),
-            tile_type,
         })
     }
 
     pub fn process(
         &mut self,
+        map: &mut WorldMap,
         inventory: &mut HashMap<InventoryItem, f32>,
         delta: f32,
     ) -> ActionResult {
         if let GatherResourceInternalAction::Go(action) = &mut self.internal_state {
             let result = action.process(delta);
             if let ActionResult::Completed = result {
-                info!("Worker started gathering {}", self.tile_type);
+                info!("Worker started gathering resource at {}", self.path.last().unwrap());
                 self.internal_state = GatherResourceInternalAction::Gather(BasicAction::new(self.gathering_cost));
             }
             return ActionResult::InProgress;
@@ -68,12 +73,34 @@ impl GatherResourcesAction {
         if let GatherResourceInternalAction::Gather(action) = &mut self.internal_state {
             let result = action.process(delta);
             if let ActionResult::Completed = result {
-                //FIXME: deplete resource by one... or whatever
-                self.inventory.insert(InventoryItem::Wood, 5.0);
-                info!("Worker gathered resource");
+                let resource_pos = self.path.last().unwrap(); //collection is not empty
+                let resource_tile = map.get_mut(resource_pos);
 
-                let total_cost = self.path_cost.iter().sum::<f32>();
-                self.internal_state = GatherResourceInternalAction::Return(BasicAction::new(total_cost));
+                let total_path_cost = self.path_cost.iter().sum::<f32>();
+
+                match resource_tile {
+                    TileType::Tree(resource_charge) => {
+                        let mut gathered_resources = resource_charge.gather();
+                        if resource_charge.current <= 0.0 {
+                            *resource_tile = TileType::Empty;
+                            info!("resource node depleted at {}!", resource_pos);
+                        }
+                        for (key, amount) in gathered_resources.drain() {
+                            let current = *self.inventory.get(&key).unwrap_or(&0.0);
+                            self.inventory.insert(key, current + amount);
+                        }
+                        info!("Worker gathered resource");
+                    }
+                    TileType::Resource(resource_type) => todo!(),
+                    _ => {
+                        info!("Did not find any resource to gather. Was the node depleted?");
+
+                        self.internal_state = GatherResourceInternalAction::Return(BasicAction::new(total_path_cost));
+                        return ActionResult::InProgress;
+                    }
+                }
+
+                self.internal_state = GatherResourceInternalAction::Return(BasicAction::new(total_path_cost));
             }
             return ActionResult::InProgress;
         };
@@ -82,12 +109,10 @@ impl GatherResourcesAction {
             let result = action.process(delta);
             if let ActionResult::Completed = result {
                 for (key, amount) in &mut self.inventory.drain() {
-                    let current_amount = inventory.get(&key).unwrap_or(&0.0);
-                    inventory.insert(key, *current_amount + amount);
+                    let current_amount = *inventory.get(&key).unwrap_or(&0.0);
+                    inventory.insert(key, current_amount + amount);
 
-                    let current_amount = inventory.get(&key).unwrap_or(&0.0);
-
-                    info!("Workered returned to shop with resources. Current inventory: {}", *current_amount);
+                    info!("Worker returned to shop with {}. Current inventory: {}", &key, current_amount + amount);
                 }
                 return ActionResult::Completed;
             }

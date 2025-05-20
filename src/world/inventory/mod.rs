@@ -29,6 +29,6 @@ pub enum InventoryItem {
 
 impl Inventory {
     pub fn is_full(&self) -> bool {
-        self.output.iter().map(|x| *x.1).sum::<f32>() > self.output_limit
+        self.output.iter().map(|x| *x.1).sum::<f32>() >= self.output_limit
     }
 }

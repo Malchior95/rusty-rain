@@ -97,7 +97,7 @@ impl Woodcutter {
                 WoodcutterWorkerAction::Idle => worker_start_work(&mut self.inventory, shops, map, structure.enterance),
                 WoodcutterWorkerAction::Haul(store_action) => worker_continue_storing(store_action, shops, delta),
                 WoodcutterWorkerAction::GatherResouce(gather_resource_action) => {
-                    worker_continue_gathering_resources(gather_resource_action, &mut self.inventory, delta)
+                    worker_continue_gathering_resources(gather_resource_action, map, &mut self.inventory, delta)
                 }
             };
 
@@ -113,10 +113,11 @@ impl Woodcutter {
 
 fn worker_continue_gathering_resources(
     gather_resource_action: &mut GatherResourcesAction,
+    map: &mut WorldMap,
     inventory: &mut Inventory,
     delta: f32,
 ) -> Option<WoodcutterWorkerAction> {
-    let result = gather_resource_action.process(&mut inventory.output, delta);
+    let result = gather_resource_action.process(map, &mut inventory.output, delta);
 
     if let ActionResult::Completed = result {
         return Some(WoodcutterWorkerAction::Idle);
@@ -173,7 +174,7 @@ fn worker_start_work(
 
     //TODO: improve woodcutting - maybe each cutter has to cut a separate tree?
 
-    let gather_action = GatherResourcesAction::new(start, map, 10.0, TileType::Tree)?;
+    let gather_action = GatherResourcesAction::new(start, map, 10.0, |t| if let TileType::Tree(_) = t { true } else { false })?;
 
     Some(WoodcutterWorkerAction::GatherResouce(gather_action))
 }

@@ -1,17 +1,10 @@
 use std::io::Write;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 use log::info;
-use world::World;
-
-mod ai;
-mod data_helpers;
-mod math;
-mod world;
-
-static FRAME_NUM: AtomicUsize = AtomicUsize::new(0);
-
+use rusty_rain::FRAME_NUM;
+use rusty_rain::world::World;
 fn main() {
     env_logger::builder()
         .format(|buf, record| {
@@ -30,9 +23,7 @@ fn main() {
 
     let mut seconds = 0.0;
     const DELTA: f32 = 1.0 / 30.0;
-    while seconds < 120.0 {
-        FRAME_NUM.fetch_add(1, Ordering::Relaxed);
-
+    while seconds < 400.0 {
         world.next_tick(DELTA);
         seconds += DELTA;
     }

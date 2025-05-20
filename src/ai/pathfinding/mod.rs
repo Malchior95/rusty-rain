@@ -11,11 +11,14 @@ use crate::{math::Pos, world::world_map::WorldMap};
 
 const HEURISTICS_INFLUENCE: f32 = 0.5;
 
-pub fn breadth_first_closest_nontraversible(
+pub fn breadth_first_closest_nontraversible<F>(
     map: &WorldMap,
     start: Pos,
-    tile_type: &TileType,
-) -> Option<Vec<Pos>> {
+    tile_type_check: F,
+) -> Option<Vec<Pos>>
+where
+    F: Fn(&TileType) -> bool,
+{
     let mut frontier: LinkedList<Pos> = LinkedList::new();
     frontier.push_front(start);
 
@@ -27,7 +30,7 @@ pub fn breadth_first_closest_nontraversible(
         //if frontier is empty
 
         //found 'end'
-        if let Some(final_tile) = get_nearby(map, &current, tile_type) {
+        if let Some(final_tile) = get_nearby(map, &current, &tile_type_check) {
             came_from.insert(final_tile, Some(current));
             return Some(build_path(&came_from, final_tile, map));
         }
@@ -158,11 +161,14 @@ fn borders_tile(
     valid.map(|p| map.get(p)).any(|t| t == tile_type)
 }
 
-fn get_nearby(
+fn get_nearby<F>(
     map: &WorldMap,
     pos: &Pos,
-    tile_type: &TileType,
-) -> Option<Pos> {
+    tile_type_check: F,
+) -> Option<Pos>
+where
+    F: Fn(&TileType) -> bool,
+{
     let ret = [
         Pos { x: pos.x - 1, y: pos.y },
         Pos { x: pos.x, y: pos.y + 1 },
@@ -170,5 +176,5 @@ fn get_nearby(
         Pos { x: pos.x, y: pos.y - 1 },
     ];
     let valid = ret.iter().filter(|&x| map.within_bounds(x));
-    valid.filter(|t| map.get(*t) == tile_type).nth(0).copied()
+    valid.filter(|t| tile_type_check(map.get(*t))).nth(0).copied()
 }

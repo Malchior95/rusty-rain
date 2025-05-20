@@ -1,5 +1,5 @@
-use crate::math::Pos;
-use std::{array::from_fn, collections::LinkedList};
+use crate::{FRAME_NUM, math::Pos};
+use std::{array::from_fn, collections::LinkedList, sync::atomic::Ordering};
 
 use inventory::InventoryItem;
 use structures::{
@@ -22,6 +22,7 @@ pub struct World {
 }
 
 impl World {
+    //TODO: remove this eventually - move main to a separate create and keep tests in tests
     pub fn new_test(
         width: usize,
         height: usize,
@@ -65,7 +66,7 @@ impl World {
 
         if built {
             if let ShopType::MainStore(store) = &mut world.shops.back_mut().unwrap().shop_type {
-                store.inventory.insert(InventoryItem::Wood, 30.0);
+                store.inventory.insert(InventoryItem::Wood, 50.0);
             }
         }
 
@@ -87,5 +88,7 @@ impl World {
             shop.process(&mut self.map, &mut self.shops, delta);
             self.shops.push_back(shop);
         }
+
+        FRAME_NUM.fetch_add(1, Ordering::Relaxed);
     }
 }
