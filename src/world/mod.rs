@@ -58,7 +58,12 @@ impl World {
             if let ShopType::Woodcutter(woodcutter) = &mut world.shops.back_mut().unwrap().shop_type {
                 let worker = world.unassigned_workers.pop_back().unwrap();
                 woodcutter.assign_worker(worker);
-                woodcutter.inventory.output.insert(InventoryItem::Wood, 10.0);
+
+                let worker = world.unassigned_workers.pop_back().unwrap();
+                woodcutter.assign_worker(worker);
+
+                let worker = world.unassigned_workers.pop_back().unwrap();
+                woodcutter.assign_worker(worker);
             }
         }
 
@@ -66,7 +71,7 @@ impl World {
 
         if built {
             if let ShopType::MainStore(store) = &mut world.shops.back_mut().unwrap().shop_type {
-                store.inventory.insert(InventoryItem::Wood, 50.0);
+                store.inventory.add(InventoryItem::Wood, 50.0);
             }
         }
 

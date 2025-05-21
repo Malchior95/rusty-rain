@@ -1,16 +1,12 @@
-use std::collections::HashMap;
-
 use log::info;
-use strum_macros::EnumDiscriminants;
+use strum_macros::Display;
 
-use crate::{math::Pos, world::inventory::InventoryItem};
+use crate::world::inventory::{Inventory, InventoryItem};
 
-use super::{TileType, WorldMap};
-
-#[derive(EnumDiscriminants)]
+#[derive(Display)]
 pub enum ResourceType {
-    Berries(ResourceCharge),
-    Herbs(ResourceCharge),
+    Berries,
+    Herbs,
     //TODO: more - clay, stone,...
 }
 
@@ -32,10 +28,10 @@ pub struct ResourceCharge {
 }
 
 impl ResourceCharge {
-    pub fn gather(&mut self) -> HashMap<InventoryItem, f32> {
+    pub fn gather(&mut self) -> Inventory {
         self.current -= 1.0;
         info!("Resource is being depleted. Type: {}, amount: {}", self.item_type, self.current);
 
-        HashMap::from_iter([(self.item_type, 1.0)])
+        Inventory::from_iter([(self.item_type, 1.0)])
     }
 }

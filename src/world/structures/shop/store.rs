@@ -1,19 +1,15 @@
-use std::collections::HashMap;
-
-use log::info;
-
 use crate::{
     math::Pos,
     world::{
         World,
-        inventory::InventoryItem,
+        inventory::Inventory,
         structures::{Shop, ShopType, ShopTypeDiscriminants, Structure},
         world_map::TileType,
     },
 };
 
 pub struct Store {
-    pub inventory: HashMap<InventoryItem, f32>,
+    pub inventory: Inventory,
 }
 
 impl Store {
@@ -25,7 +21,7 @@ impl Store {
             return false;
         }
 
-        let woodcutter = Self { inventory: HashMap::new() };
+        let woodcutter = Self { inventory: Inventory::new() };
 
         //FIXME: check if enterance is accessible...
 
@@ -47,41 +43,6 @@ impl Store {
             TileType::Structure(ShopTypeDiscriminants::MainStore)
         });
         return true;
-    }
-
-    pub fn add(
-        &mut self,
-        item: InventoryItem,
-        amount: f32,
-    ) {
-        let current = self.inventory.get(&item).unwrap_or(&0.0);
-
-        info!("Added {} to the store. Current amount: {}", item, *current + amount);
-        self.inventory.insert(item, *current + amount);
-    }
-
-    pub fn can_take(
-        &self,
-        item: &InventoryItem,
-        amount: f32,
-    ) -> bool {
-        let current = self.inventory.get(item).unwrap_or(&0.0);
-        *current > amount
-    }
-
-    pub fn take(
-        &mut self,
-        item: InventoryItem,
-        amount: f32,
-    ) {
-        let current = self.inventory.get(&item).unwrap_or(&0.0);
-        if !self.can_take(&item, amount) {
-            panic!();
-        }
-
-        info!("Removed {} from the store. Current amount: {}", item, *current - amount);
-
-        self.inventory.insert(item, *current - amount);
     }
 
     //pub fn process(

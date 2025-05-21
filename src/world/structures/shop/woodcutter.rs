@@ -7,7 +7,7 @@ use crate::{
     world::{
         World,
         actions::{ActionResult, BasicAction, gather_resource_action::GatherResourcesAction, store_action::StoreAction},
-        inventory::{Inventory, InventoryItem},
+        inventory::{IOInventory, InventoryItem},
         structures::{Shop, ShopType, ShopTypeDiscriminants, Structure},
         workers::Worker,
         world_map::{TileType, WorldMap},
@@ -15,7 +15,7 @@ use crate::{
 };
 
 pub struct Woodcutter {
-    pub inventory: Inventory,
+    pub inventory: IOInventory,
     pub workers: Vec<WoodcutterWorker>,
 }
 
@@ -42,7 +42,7 @@ impl Woodcutter {
         }
 
         let woodcutter = Self {
-            inventory: Inventory::default(),
+            inventory: IOInventory::default(),
             workers: Vec::new(),
         };
 
@@ -114,7 +114,7 @@ impl Woodcutter {
 fn worker_continue_gathering_resources(
     gather_resource_action: &mut GatherResourcesAction,
     map: &mut WorldMap,
-    inventory: &mut Inventory,
+    inventory: &mut IOInventory,
     delta: f32,
 ) -> Option<WoodcutterWorkerAction> {
     let result = gather_resource_action.process(map, &mut inventory.output, delta);
@@ -152,7 +152,7 @@ fn worker_continue_storing(
 }
 
 fn worker_start_work(
-    inventory: &mut Inventory,
+    inventory: &mut IOInventory,
     shops: &mut LinkedList<Shop>,
     map: &mut WorldMap,
     start: Pos,
@@ -172,9 +172,8 @@ fn worker_start_work(
         return Some(WoodcutterWorkerAction::Haul(haul_action));
     }
 
-    //TODO: improve woodcutting - maybe each cutter has to cut a separate tree?
-
-    let gather_action = GatherResourcesAction::new(start, map, 10.0, |t| if let TileType::Tree(_) = t { true } else { false })?;
+    //gather tree that is not being cut
+    let gather_action = GatherResourcesAction::new(start, map, 10.0, |t| if let TileType::Tree(_, being_cut) = t { !being_cut } else { false })?;
 
     Some(WoodcutterWorkerAction::GatherResouce(gather_action))
 }

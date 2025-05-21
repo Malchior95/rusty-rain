@@ -135,30 +135,15 @@ fn get_neighbours(
     map: &WorldMap,
     pos: &Pos,
 ) -> Vec<Pos> {
-    let ret = [
-        Pos { x: pos.x - 1, y: pos.y },
-        Pos { x: pos.x, y: pos.y + 1 },
-        Pos { x: pos.x + 1, y: pos.y },
-        Pos { x: pos.x, y: pos.y - 1 },
-    ];
-    let valid = ret.iter().filter(|&x| map.within_bounds(x) && (map.get(x).is_traversible()));
+    let bottom = if pos.y > 0 { Some(Pos::new(pos.x, pos.y - 1)) } else { None };
+    let top = if pos.y < map.height() - 1 { Some(Pos::new(pos.x, pos.y + 1)) } else { None };
+    let left = if pos.x > 0 { Some(Pos::new(pos.x - 1, pos.y)) } else { None };
+    let right = if pos.x < map.width() - 1 { Some(Pos::new(pos.x + 1, pos.y)) } else { None };
+
+    let ret = [bottom, left, top, right];
+    let valid = ret.iter().filter_map(|p| p.as_ref()).filter(|&x| (map.get(x).is_traversible()));
 
     valid.cloned().collect()
-}
-
-fn borders_tile(
-    map: &WorldMap,
-    pos: &Pos,
-    tile_type: &TileType,
-) -> bool {
-    let ret = [
-        Pos { x: pos.x - 1, y: pos.y },
-        Pos { x: pos.x, y: pos.y + 1 },
-        Pos { x: pos.x + 1, y: pos.y },
-        Pos { x: pos.x, y: pos.y - 1 },
-    ];
-    let valid = ret.iter().filter(|&x| map.within_bounds(x));
-    valid.map(|p| map.get(p)).any(|t| t == tile_type)
 }
 
 fn get_nearby<F>(
@@ -169,12 +154,11 @@ fn get_nearby<F>(
 where
     F: Fn(&TileType) -> bool,
 {
-    let ret = [
-        Pos { x: pos.x - 1, y: pos.y },
-        Pos { x: pos.x, y: pos.y + 1 },
-        Pos { x: pos.x + 1, y: pos.y },
-        Pos { x: pos.x, y: pos.y - 1 },
-    ];
-    let valid = ret.iter().filter(|&x| map.within_bounds(x));
-    valid.filter(|t| tile_type_check(map.get(*t))).nth(0).copied()
+    let bottom = if pos.y > 0 { Some(Pos::new(pos.x, pos.y - 1)) } else { None };
+    let top = if pos.y < map.height() - 1 { Some(Pos::new(pos.x, pos.y + 1)) } else { None };
+    let left = if pos.x > 0 { Some(Pos::new(pos.x - 1, pos.y)) } else { None };
+    let right = if pos.x < map.width() - 1 { Some(Pos::new(pos.x + 1, pos.y)) } else { None };
+
+    let ret = [bottom, left, top, right];
+    ret.iter().filter_map(|p| p.as_ref()).filter(|t| tile_type_check(map.get(*t))).nth(0).copied()
 }

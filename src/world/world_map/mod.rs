@@ -23,8 +23,8 @@ pub enum TileType {
     Empty,
     Road,
     Structure(ShopTypeDiscriminants),
-    Tree(ResourceCharge),
-    Resource(ResourceType),
+    Tree(ResourceCharge, bool),
+    Resource(ResourceType, ResourceCharge, bool),
 }
 
 impl PartialEq for TileType {
@@ -34,7 +34,7 @@ impl PartialEq for TileType {
     ) -> bool {
         match (self, other) {
             (Self::Structure(l0), Self::Structure(r0)) => l0 == r0,
-            (Self::Resource(l0), Self::Resource(r0)) => l0 == r0,
+            (Self::Resource(l0, _, _), Self::Resource(r0, _, _)) => l0 == r0,
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
     }
@@ -67,11 +67,14 @@ impl WorldMap {
         for y in 0..height {
             for x in 0..width {
                 if [0, 1, height - 2, height - 1].contains(&y) || [0, 1, width - 2, width - 1].contains(&x) {
-                    world.map[y][x] = TileType::Tree(ResourceCharge {
-                        item_type: InventoryItem::Wood,
-                        total: 10.0,
-                        current: 10.0,
-                    });
+                    world.map[y][x] = TileType::Tree(
+                        ResourceCharge {
+                            item_type: InventoryItem::Wood,
+                            total: 10.0,
+                            current: 10.0,
+                        },
+                        false,
+                    );
                 }
             }
         }
@@ -142,7 +145,7 @@ impl WorldMap {
         &self,
         pos: &Pos,
     ) -> bool {
-        pos.x > 0 && pos.x < self.width() && pos.y > 0 && pos.y < self.height()
+        pos.x < self.width() && pos.y < self.height()
     }
 
     pub fn path_to_cost(
@@ -184,7 +187,7 @@ impl TileType {
     pub fn to_char(&self) -> &str {
         match self {
             TileType::Empty => "  ",
-            TileType::Resource(_) => " ",
+            TileType::Resource(_, _, _) => " ",
             TileType::Road => " ",
             TileType::Structure(shop_type) => match shop_type {
                 ShopTypeDiscriminants::MainHearth => " ",
@@ -192,27 +195,27 @@ impl TileType {
                 //ShopType::Herbalist => "󰧻󱔐",
                 ShopTypeDiscriminants::MainStore => "󰾁 ",
             },
-            TileType::Tree(_) => " ",
+            TileType::Tree(_, _) => " ",
         }
     }
 
     pub fn cost(&self) -> f32 {
         match self {
             TileType::Empty => 1.0,
-            TileType::Resource(_) => 2.0,
+            TileType::Resource(_, _, _) => 2.0,
             TileType::Road => 0.7,
             TileType::Structure(_) => 10.0,
-            TileType::Tree(_) => 10.0,
+            TileType::Tree(_, _) => 10.0,
         }
     }
 
     pub fn is_traversible(&self) -> bool {
         match self {
             TileType::Empty => true,
-            TileType::Resource(_) => true,
+            TileType::Resource(_, _, _) => true,
             TileType::Road => true,
             TileType::Structure(_) => false,
-            TileType::Tree(_) => false,
+            TileType::Tree(_, _) => false,
         }
     }
 }

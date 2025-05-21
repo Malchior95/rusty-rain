@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-
 use log::info;
 
 use crate::{
     ai::pathfinding,
     math::Pos,
-    world::{inventory::InventoryItem, structures::shop::store::Store, world_map::WorldMap},
+    world::{inventory::Inventory, structures::shop::store::Store, world_map::WorldMap},
 };
 
 use super::ActionResult;
@@ -14,7 +12,7 @@ pub struct SupplyAction {
     pub progress: f32,
     path_cost: Vec<f32>,
     pub path: Vec<Pos>,
-    pub inventory: HashMap<InventoryItem, f32>,
+    pub inventory: Inventory,
     reached_destination: bool,
 }
 
@@ -23,7 +21,7 @@ impl SupplyAction {
         from: Pos,
         to: Pos,
         map: &WorldMap,
-        inventory_to_haul: HashMap<InventoryItem, f32>,
+        inventory_to_haul: Inventory,
         store: &mut Store,
     ) -> Option<Self> {
         info!("Worker started supplying!");
@@ -31,7 +29,7 @@ impl SupplyAction {
         //make a reservation in the store...
         //first, check if action can be performed
         for (key, amount) in inventory_to_haul.iter() {
-            if !store.can_take(key, *amount) {
+            if store.inventory.get(key) < *amount {
                 return None;
             }
         }
@@ -40,7 +38,7 @@ impl SupplyAction {
 
         //if O.K. - make a reservation
         for (key, amount) in inventory_to_haul.iter() {
-            store.take(*key, *amount);
+            store.inventory.remove(*key, *amount);
         }
 
         Some(Self {
@@ -54,7 +52,7 @@ impl SupplyAction {
 
     pub fn process(
         &mut self,
-        store_inventory: &mut HashMap<InventoryItem, f32>,
+        store_inventory: &mut Inventory,
         delta: f32,
     ) -> ActionResult {
         //action requires going both ways - therefore * 2.0
@@ -69,8 +67,8 @@ impl SupplyAction {
         if self.progress > 2.0 * requirement {
             info!("Worker came back to building from supplying!");
             for (key, items) in self.inventory.drain() {
-                let own_items = store_inventory.get(&key).unwrap_or(&0.0);
-                store_inventory.insert(key, *own_items + items);
+                info!("--- delivering {} {}", key, items);
+                store_inventory.add(key, items);
             }
             ActionResult::Completed
         } else {

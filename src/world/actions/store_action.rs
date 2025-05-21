@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-
 use log::info;
 
 use crate::{
     ai::pathfinding,
     math::Pos,
-    world::{inventory::InventoryItem, structures::shop::store::Store, world_map::WorldMap},
+    world::{inventory::Inventory, structures::shop::store::Store, world_map::WorldMap},
 };
 
 use super::ActionResult;
@@ -14,7 +12,7 @@ pub struct StoreAction {
     pub progress: f32,
     path_cost: Vec<f32>,
     pub path: Vec<Pos>,
-    pub inventory: HashMap<InventoryItem, f32>,
+    pub inventory: Inventory,
     reached_destination: bool,
 }
 
@@ -23,13 +21,13 @@ impl StoreAction {
         from: Pos,
         to: Pos,
         map: &WorldMap,
-        shop_inventory: &mut HashMap<InventoryItem, f32>,
+        shop_inventory: &mut Inventory,
     ) -> Option<Self> {
         info!("Worker started storing!");
 
         let path = pathfinding::a_star(map, from, to)?;
 
-        let inventory_to_haul = HashMap::from_iter(shop_inventory.drain());
+        let inventory_to_haul = Inventory::from_iter(shop_inventory.drain());
 
         Some(Self {
             progress: 0.0,
@@ -56,7 +54,7 @@ impl StoreAction {
             //transfer to storeage
 
             for (key, resource) in self.inventory.drain() {
-                store.add(key, resource);
+                store.inventory.add(key, resource);
             }
         }
 

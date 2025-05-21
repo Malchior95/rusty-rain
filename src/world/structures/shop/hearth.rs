@@ -1,14 +1,13 @@
-use std::collections::{HashMap, LinkedList};
+use std::collections::LinkedList;
 
 use log::info;
 
 use crate::{
-    ai::pathfinding,
     math::Pos,
     world::{
         World,
         actions::{ActionResult, BasicAction, supply_action::SupplyAction},
-        inventory::InventoryItem,
+        inventory::{Inventory, InventoryItem},
         structures::{Shop, ShopType, ShopTypeDiscriminants, Structure},
         workers::Worker,
         world_map::{TileType, WorldMap},
@@ -17,7 +16,7 @@ use crate::{
 
 pub struct Hearth {
     pub action: HearthAction,
-    pub inventory: HashMap<InventoryItem, f32>,
+    pub inventory: Inventory,
     pub hearth_worker: Option<HearthWorker>,
 }
 
@@ -51,7 +50,7 @@ impl Hearth {
 
         let hearth = Self {
             action: HearthAction::default(),
-            inventory: HashMap::from_iter([(InventoryItem::Wood, 10.0)]),
+            inventory: Inventory::from_iter([(InventoryItem::Wood, 10.0)]),
             hearth_worker: None,
         };
 
@@ -116,14 +115,14 @@ impl Hearth {
 
 fn process_worker_fuel_haul(
     worker: &mut HearthWorker,
-    inventory: &mut HashMap<InventoryItem, f32>,
+    inventory: &mut Inventory,
     structure: &Structure,
     map: &WorldMap,
     shops: &mut LinkedList<Shop>,
 
     delta: f32,
 ) {
-    if *inventory.get(&InventoryItem::Wood).unwrap_or(&0.0) > 10.0 {
+    if inventory.get(&InventoryItem::Wood) > 10.0 {
         //no need to fetch fuel - stock full
         return;
     }
@@ -152,20 +151,20 @@ fn process_burning(
 }
 
 fn process_idle(
-    inventory: &mut HashMap<InventoryItem, f32>,
+    inventory: &mut Inventory,
     has_worker: bool,
     //delta: f32,
 ) -> Option<HearthAction> {
     //this is weird... why do I need to dereference a float?
-    let wood = *inventory.get(&InventoryItem::Wood).unwrap_or(&0.0);
+    let wood = inventory.get(&InventoryItem::Wood);
 
     //if idle for the first time, this is expected - start new burning process if wood supply
     //allows and worker is present
 
     if wood > 1.0 && has_worker {
-        inventory.insert(InventoryItem::Wood, wood - 1.0);
+        inventory.remove(InventoryItem::Wood, 1.0);
 
-        let burning_action = BasicAction::new(10.0);
+        let burning_action = BasicAction::new(20.0);
         info!("Hearth has started burning, remaining fuel: {}", wood - 1.0);
 
         return Some(HearthAction::Burning(burning_action));
@@ -192,13 +191,13 @@ fn worker_start_hauling(
         None
     })?;
 
-    let haul_action = SupplyAction::new(structure.enterance, position, map, HashMap::from_iter([(InventoryItem::Wood, 10.0)]), store)?;
+    let haul_action = SupplyAction::new(structure.enterance, position, map, Inventory::from_iter([(InventoryItem::Wood, 10.0)]), store)?;
 
     Some(HearthWorkerAction::Haul(haul_action))
 }
 
 fn worker_continue_hauling(
-    inventory: &mut HashMap<InventoryItem, f32>,
+    inventory: &mut Inventory,
     haul_data: &mut SupplyAction,
     delta: f32,
 ) -> Option<HearthWorkerAction> {
