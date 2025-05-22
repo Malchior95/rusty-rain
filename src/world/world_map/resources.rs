@@ -4,23 +4,12 @@ use crate::world::inventory::{Inventory, InventoryItem};
 
 use super::TileType;
 
-#[derive(Display)]
+#[derive(Display, PartialEq, Eq)]
 pub enum ResourceType {
     Tree,
     Berries,
     Herbs,
     //TODO: more - clay, stone,...
-}
-
-impl PartialEq for ResourceType {
-    fn eq(
-        &self,
-        other: &Self,
-    ) -> bool {
-        match (self, other) {
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
-        }
-    }
 }
 
 pub struct ResourceCharge {

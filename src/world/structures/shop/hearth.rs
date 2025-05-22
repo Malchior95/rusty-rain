@@ -54,13 +54,10 @@ impl Hearth {
             hearth_worker: None,
         };
 
-        //FIXME: check if enterance is accessible
-
         let structure = Structure {
             pos,
             height: Hearth::HEIGHT,
             width: Hearth::WIDTH,
-            enterance: Pos::new(pos.x, pos.y - 1),
         };
 
         let shop = Shop {
@@ -186,12 +183,12 @@ fn worker_start_hauling(
     //search woodcutters, if closer?
     let (store, position) = shops.iter_mut().find_map(|s| {
         if let ShopType::MainStore(ref mut store) = s.shop_type {
-            return Some((store, s.structure.enterance));
+            return Some((store, s.structure.pos));
         }
         None
     })?;
 
-    let haul_action = SupplyAction::new(structure.enterance, position, map, Inventory::from_iter([(InventoryItem::Wood, 10.0)]), store)?;
+    let haul_action = SupplyAction::new(structure.pos, position, map, Inventory::from_iter([(InventoryItem::Wood, 10.0)]), store)?;
 
     Some(HearthWorkerAction::Haul(haul_action))
 }

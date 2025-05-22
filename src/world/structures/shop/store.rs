@@ -23,13 +23,10 @@ impl Store {
 
         let store = Self { inventory: Inventory::new() };
 
-        //FIXME: check if enterance is accessible...
-
         let structure = Structure {
             pos,
             height: Self::HEIGHT,
             width: Self::WIDTH,
-            enterance: Pos::new(pos.x, pos.y - 1),
         };
 
         let shop = Shop {

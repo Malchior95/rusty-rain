@@ -37,7 +37,7 @@ impl GatherResourcesAction {
     {
         info!("Worker wants to gather resources!");
 
-        let path = pathfinding::dijkstra_closest_nontraversible(map, from, &tile_type_check)?;
+        let path = pathfinding::dijkstra_closest(map, from, &tile_type_check)?;
         if path.is_empty() {
             return None;
         }

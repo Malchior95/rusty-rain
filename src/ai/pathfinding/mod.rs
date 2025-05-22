@@ -11,7 +11,7 @@ use crate::{math::Pos, world::world_map::WorldMap};
 
 const HEURISTICS_INFLUENCE: f32 = 0.5;
 
-pub fn dijkstra_closest_nontraversible<F>(
+pub fn dijkstra_closest<F>(
     map: &WorldMap,
     start: Pos,
     tile_type_check: F,
@@ -85,9 +85,8 @@ pub fn a_star(
         //if frontier is empty
 
         //found 'end'
-        //TODO: handle situation where 'end' is a building - would not be able to move there, but
-        //still need to accept the path
-        if current == end {
+        if is_nearby(map, &current, &end) {
+            came_from.insert(end, Some(current));
             return Some(build_path(&came_from, end, map));
         }
 
@@ -177,4 +176,19 @@ where
 
     let ret = [bottom, left, top, right];
     ret.iter().filter_map(|p| p.as_ref()).filter(|t| tile_type_check(map.get(*t))).nth(0).copied()
+}
+fn is_nearby(
+    map: &WorldMap,
+    pos: &Pos,
+    target: &Pos,
+) -> bool
+where
+{
+    let bottom = if pos.y > 0 { Some(Pos::new(pos.x, pos.y - 1)) } else { None };
+    let top = if pos.y < map.height() - 1 { Some(Pos::new(pos.x, pos.y + 1)) } else { None };
+    let left = if pos.x > 0 { Some(Pos::new(pos.x - 1, pos.y)) } else { None };
+    let right = if pos.x < map.width() - 1 { Some(Pos::new(pos.x + 1, pos.y)) } else { None };
+
+    let ret = [bottom, left, top, right];
+    ret.iter().filter_map(|p| p.as_ref()).filter(|&p| p == target).any(|_| true)
 }

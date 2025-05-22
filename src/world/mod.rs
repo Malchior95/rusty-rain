@@ -18,7 +18,15 @@ pub mod world_map;
 pub struct World {
     pub map: WorldMap,
     pub shops: LinkedList<Shop>,
+    next_id: usize,
     pub unassigned_workers: LinkedList<Worker>,
+}
+
+impl World {
+    pub fn next_id(&mut self) -> usize {
+        self.next_id += 1;
+        self.next_id - 1
+    }
 }
 
 impl World {
@@ -43,6 +51,7 @@ impl World {
         let mut world = World {
             map,
             shops: LinkedList::new(),
+            next_id: 0,
             unassigned_workers,
         };
 

@@ -47,13 +47,10 @@ impl Gatherer {
             resource_type,
         };
 
-        //FIXME: check if enterance is accessible...
-
         let structure = Structure {
             pos,
             height: Self::HEIGHT,
             width: Self::WIDTH,
-            enterance: Pos::new(pos.x, pos.y - 1),
         };
 
         let shop = Shop {
@@ -95,7 +92,7 @@ impl Gatherer {
 
         for worker in &mut self.workers {
             let maybe_new_action = match &mut worker.action {
-                GathererWorkerAction::Idle => worker_start_work(&mut self.inventory, shops, map, &self.resource_type, structure.enterance),
+                GathererWorkerAction::Idle => worker_start_work(&mut self.inventory, shops, map, &self.resource_type, structure.pos),
                 GathererWorkerAction::Store(store_action) => worker_continue_storing(store_action, shops, delta),
                 GathererWorkerAction::GatherResouce(gather_resource_action) => {
                     worker_continue_gathering_resources(gather_resource_action, map, &mut self.inventory, delta)
@@ -135,7 +132,9 @@ fn worker_continue_storing(
     //TODO: if no store - it means the store was destroyed! What do? For now - remain in the
     //current action, but do not progress
     //FIXME: how to ensure I find the same store that was ogirinally selected? Maybe check what
-    //building is at path's end? better - introduce Ids and store id.
+    //building is at path's end? better - introduce Ids and store id. Not even. Actually I have
+    //updated pathfinding to go to the exact store location, so you can use that. Still, the
+    //problem above remains
     let store = shops.iter_mut().find_map(|s| {
         if let ShopType::MainStore(store) = &mut s.shop_type {
             return Some(store);
@@ -162,7 +161,7 @@ fn worker_start_work(
     if inventory.is_full() {
         let position = shops.iter_mut().find_map(|s| {
             if let ShopType::MainStore(_) = &mut s.shop_type {
-                return Some(s.structure.enterance);
+                return Some(s.structure.pos);
             }
             return None;
         })?; // if no store - remain idle

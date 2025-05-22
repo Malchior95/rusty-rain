@@ -15,9 +15,10 @@ pub struct WorldMap {
     //TODO: maybe also a layer for systems> e.g. pipes, wires... like ONI!
     pub map: Vec<Vec<TileType>>,
     //TODO: can I use an array?
+    //If I want to, TileType needs to be Copy
     //pub map: [[TileType; A]; B]
 }
-#[derive(Default, EnumIs, Display, EnumDiscriminants)]
+#[derive(Default, Display, EnumDiscriminants)]
 pub enum TileType {
     #[default]
     Empty,
@@ -112,7 +113,7 @@ impl WorldMap {
 
         for h in 0..height {
             for w in 0..width {
-                if !self.map[y + h as usize][x + w as usize].is_empty() {
+                if self.map[y + h as usize][x + w as usize] != TileType::Empty {
                     return false;
                 }
             }
