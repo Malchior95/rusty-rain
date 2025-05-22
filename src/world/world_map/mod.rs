@@ -5,7 +5,7 @@ use strum_macros::{Display, EnumDiscriminants, EnumIs};
 
 use crate::math::Pos;
 
-use super::{inventory::InventoryItem, structures::ShopTypeDiscriminants};
+use super::structures::ShopTypeDiscriminants;
 pub mod resources;
 
 pub struct WorldMap {
@@ -67,15 +67,7 @@ impl WorldMap {
         for y in 0..height {
             for x in 0..width {
                 if [0, 1, height - 2, height - 1].contains(&y) || [0, 1, width - 2, width - 1].contains(&x) {
-                    world.map[y][x] = TileType::Resource(
-                        ResourceType::Tree,
-                        ResourceCharge {
-                            item_type: InventoryItem::Wood,
-                            total: 10.0,
-                            current: 10.0,
-                        },
-                        false,
-                    );
+                    world.map[y][x] = ResourceType::tile_tree();
                 }
             }
         }
@@ -181,20 +173,6 @@ impl Display for WorldMap {
             writeln!(f)?;
         }
         Ok(())
-    }
-}
-
-impl TileType {
-    pub fn new_tree() -> Self {
-        Self::Resource(
-            ResourceType::Tree,
-            ResourceCharge {
-                item_type: InventoryItem::Wood,
-                total: 10.0,
-                current: 10.0,
-            },
-            false,
-        )
     }
 }
 

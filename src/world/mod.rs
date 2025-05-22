@@ -36,25 +36,9 @@ impl World {
         (3..7).map(|y| Pos::new(3, y)).for_each(|p| map.map[p.y][p.x] = TileType::Road);
         (3..8).map(|x| Pos::new(x, 6)).for_each(|p| map.map[p.y][p.x] = TileType::Road);
 
-        *map.get_mut(&Pos::new(3, 12)) = TileType::Resource(
-            ResourceType::Berries,
-            world_map::resources::ResourceCharge {
-                item_type: InventoryItem::Berries,
-                total: 25.0,
-                current: 25.0,
-            },
-            false,
-        );
+        *map.get_mut(&Pos::new(3, 12)) = ResourceType::tile_berry();
 
-        *map.get_mut(&Pos::new(3, 7)) = TileType::Resource(
-            ResourceType::Tree,
-            world_map::resources::ResourceCharge {
-                item_type: InventoryItem::Wood,
-                total: 25.0,
-                current: 25.0,
-            },
-            false,
-        );
+        *map.get_mut(&Pos::new(3, 7)) = ResourceType::tile_tree();
 
         let mut world = World {
             map,

@@ -5,7 +5,7 @@ use crate::{
     world::{
         World,
         actions::{ActionResult, gather_resource_action::GatherResourcesAction, store_action::StoreAction},
-        inventory::IOInventory,
+        inventory::Inventory,
         structures::{Shop, ShopType, ShopTypeDiscriminants, Structure},
         workers::Worker,
         world_map::{TileType, WorldMap, resources::ResourceType},
@@ -13,7 +13,7 @@ use crate::{
 };
 
 pub struct Gatherer {
-    pub inventory: IOInventory,
+    pub inventory: Inventory,
     pub workers: Vec<GathererWorker>,
     pub resource_type: ResourceType,
 }
@@ -42,7 +42,7 @@ impl Gatherer {
         }
 
         let gatherer = Self {
-            inventory: IOInventory::default(),
+            inventory: Inventory::limited(10.0),
             workers: Vec::new(),
             resource_type,
         };
@@ -115,10 +115,10 @@ impl Gatherer {
 fn worker_continue_gathering_resources(
     gather_resource_action: &mut GatherResourcesAction,
     map: &mut WorldMap,
-    inventory: &mut IOInventory,
+    inventory: &mut Inventory,
     delta: f32,
 ) -> Option<GathererWorkerAction> {
-    let result = gather_resource_action.process(map, &mut inventory.output, delta);
+    let result = gather_resource_action.process(map, inventory, delta);
 
     if let ActionResult::Completed = result {
         return Some(GathererWorkerAction::Idle);
@@ -153,7 +153,7 @@ fn worker_continue_storing(
 }
 
 fn worker_start_work(
-    inventory: &mut IOInventory,
+    inventory: &mut Inventory,
     shops: &mut LinkedList<Shop>,
     map: &mut WorldMap,
     resource_type: &ResourceType,
@@ -169,7 +169,7 @@ fn worker_start_work(
 
         //TODO: for now haul everything - in the future: only haul some part at a time
 
-        let haul_action = StoreAction::new(start, position, map, &mut inventory.output)?;
+        let haul_action = StoreAction::new(start, position, map, inventory)?;
 
         return Some(GathererWorkerAction::Store(haul_action));
     }
