@@ -110,6 +110,10 @@ impl World {
         //contain double reference to the same object (which is not allowed in rust)
         //I need to pop item from the queue first, and can then safely pass list of all rmaining
         //shops to it's process function. I then place the shop back in the queue
+        //
+        //I just learned I could use something like RefCell, to check borrowing rules at runtime,
+        //if I need to. I dont wanna. They say that in programming you either write a code or write
+        //a theorem. I'm in the second team
         for _ in 0..self.shops.len() {
             let mut shop = self.shops.pop_front().unwrap();
             shop.process(&mut self.map, &mut self.shops, delta);

@@ -28,7 +28,7 @@ pub enum GathererWorkerAction {
     #[default]
     Idle,
     Store(StoreAction),
-    GatherResouce(GatherResourcesAction),
+    GatherResource(GatherResourcesAction),
 }
 
 impl Gatherer {
@@ -94,7 +94,7 @@ impl Gatherer {
             let maybe_new_action = match &mut worker.action {
                 GathererWorkerAction::Idle => worker_start_work(&mut self.inventory, shops, map, &self.resource_type, structure.pos),
                 GathererWorkerAction::Store(store_action) => worker_continue_storing(store_action, shops, delta),
-                GathererWorkerAction::GatherResouce(gather_resource_action) => {
+                GathererWorkerAction::GatherResource(gather_resource_action) => {
                     worker_continue_gathering_resources(gather_resource_action, map, &mut self.inventory, delta)
                 }
             };
@@ -182,5 +182,5 @@ fn worker_start_work(
         }
     })?;
 
-    Some(GathererWorkerAction::GatherResouce(gather_action))
+    Some(GathererWorkerAction::GatherResource(gather_action))
 }

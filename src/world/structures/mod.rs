@@ -2,7 +2,7 @@ use std::collections::LinkedList;
 
 pub mod shop;
 use shop::{gatherer::Gatherer, hearth::Hearth, store::Store};
-use strum_macros::{EnumDiscriminants, EnumIs};
+use strum_macros::EnumDiscriminants;
 
 use crate::{math::Pos, world::world_map::WorldMap};
 
@@ -20,7 +20,7 @@ pub struct Structure {
     pub width: u8,
 }
 
-#[derive(EnumDiscriminants, EnumIs)]
+#[derive(EnumDiscriminants)]
 pub enum ShopType {
     MainHearth(Hearth),
     MainStore(Store),
@@ -34,9 +34,9 @@ impl Shop {
         shops: &mut LinkedList<Shop>,
         delta: f32,
     ) {
-        match self.shop_type {
-            ShopType::MainHearth(ref mut hearth) => hearth.process(&self.structure, map, shops, delta),
-            ShopType::Gatherer(ref mut gatherer) => gatherer.process(&self.structure, map, shops, delta),
+        match &mut self.shop_type {
+            ShopType::MainHearth(hearth) => hearth.process(&self.structure, map, shops, delta),
+            ShopType::Gatherer(gatherer) => gatherer.process(&self.structure, map, shops, delta),
             _ => {} //currently no update necessary...
         }
     }
