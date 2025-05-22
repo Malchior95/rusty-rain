@@ -60,9 +60,9 @@ impl Gatherer {
 
         world.shops.push_back(shop);
 
-        world
-            .map
-            .build(pos.x, pos.y, Self::WIDTH, Self::HEIGHT, || TileType::Structure(ShopTypeDiscriminants::Gatherer));
+        world.map.build(pos.x, pos.y, Self::WIDTH, Self::HEIGHT, || {
+            TileType::Structure(ShopTypeDiscriminants::Gatherer)
+        });
         return true;
     }
 
@@ -80,23 +80,27 @@ impl Gatherer {
     pub fn process(
         &mut self,
         structure: &Structure,
-        map: &mut WorldMap,
-        shops: &mut LinkedList<Shop>,
+        world: &mut World,
         delta: f32,
     ) {
         if self.workers.is_empty() {
             return; //gatherer cannot operate if no workers
         }
 
-        //TODO: for now just find the main store. In the future - maybe find the closest one
-
         for worker in &mut self.workers {
             let maybe_new_action = match &mut worker.action {
-                GathererWorkerAction::Idle => worker_start_work(&mut self.inventory, shops, map, &self.resource_type, structure.pos),
-                GathererWorkerAction::Store(store_action) => worker_continue_storing(store_action, shops, delta),
-                GathererWorkerAction::GatherResource(gather_resource_action) => {
-                    worker_continue_gathering_resources(gather_resource_action, map, &mut self.inventory, delta)
+                GathererWorkerAction::Idle => {
+                    worker_start_work(&mut self.inventory, world, &self.resource_type, structure.pos)
                 }
+                GathererWorkerAction::Store(store_action) => {
+                    worker_continue_storing(store_action, &mut world.shops, delta)
+                }
+                GathererWorkerAction::GatherResource(gather_resource_action) => worker_continue_gathering_resources(
+                    gather_resource_action,
+                    &mut world.map,
+                    &mut self.inventory,
+                    delta,
+                ),
             };
 
             if let Some(action) = maybe_new_action {
@@ -153,13 +157,12 @@ fn worker_continue_storing(
 
 fn worker_start_work(
     inventory: &mut Inventory,
-    shops: &mut LinkedList<Shop>,
-    map: &mut WorldMap,
+    world: &mut World,
     resource_type: &ResourceType,
     start: Pos,
 ) -> Option<GathererWorkerAction> {
     if inventory.is_full() {
-        let position = shops.iter_mut().find_map(|s| {
+        let position = world.shops.iter_mut().find_map(|s| {
             if let ShopType::MainStore(_) = &mut s.shop_type {
                 return Some(s.structure.pos);
             }
@@ -168,13 +171,13 @@ fn worker_start_work(
 
         //TODO: for now haul everything - in the future: only haul some part at a time
 
-        let haul_action = StoreAction::new(start, position, map, inventory)?;
+        let haul_action = StoreAction::new(start, position, &world.map, inventory)?;
 
         return Some(GathererWorkerAction::Store(haul_action));
     }
 
     //gather tree that is not being cut
-    let gather_action = GatherResourcesAction::new(start, map, 10.0, |t| {
+    let gather_action = GatherResourcesAction::new(start, &mut world.map, 10.0, |t| {
         if let TileType::Resource(rt, _, being_cut) = t {
             rt == resource_type && !being_cut
         } else {

@@ -6,6 +6,8 @@ use strum_macros::EnumDiscriminants;
 
 use crate::{math::Pos, world::world_map::WorldMap};
 
+use super::World;
+
 pub struct Shop {
     //pub workers: Vec<Worker>,
     //pub inventory: Inventory,
@@ -30,13 +32,12 @@ pub enum ShopType {
 impl Shop {
     pub fn process(
         &mut self,
-        map: &mut WorldMap,
-        shops: &mut LinkedList<Shop>,
+        world: &mut World,
         delta: f32,
     ) {
         match &mut self.shop_type {
-            ShopType::MainHearth(hearth) => hearth.process(&self.structure, map, shops, delta),
-            ShopType::Gatherer(gatherer) => gatherer.process(&self.structure, map, shops, delta),
+            ShopType::MainHearth(hearth) => hearth.process(&self.structure, world, delta),
+            ShopType::Gatherer(gatherer) => gatherer.process(&self.structures, world, delta),
             _ => {} //currently no update necessary...
         }
     }

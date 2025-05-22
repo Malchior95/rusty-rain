@@ -103,11 +103,11 @@ impl WorldMap {
         width: u8,
         height: u8,
     ) -> bool {
-        if y + height as usize >= self.map.len() {
+        if y + height as usize >= self.height() {
             return false;
         }
 
-        if x + width as usize >= self.map.first().unwrap().len() {
+        if x + width as usize >= self.width() {
             return false;
         }
 

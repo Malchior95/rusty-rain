@@ -1,5 +1,3 @@
-use std::collections::LinkedList;
-
 use log::info;
 
 use crate::{
@@ -10,7 +8,7 @@ use crate::{
         inventory::{Inventory, InventoryItem},
         structures::{Shop, ShopType, ShopTypeDiscriminants, Structure},
         workers::Worker,
-        world_map::{TileType, WorldMap},
+        world_map::TileType,
     },
 };
 
@@ -88,16 +86,15 @@ impl Hearth {
     pub fn process(
         &mut self,
         structure: &Structure,
-        map: &mut WorldMap,
-        shops: &mut LinkedList<Shop>,
+        world: &mut World,
         delta: f32,
     ) {
         if let Some(worker) = &mut self.hearth_worker {
-            process_worker_fuel_haul(worker, &mut self.inventory, structure, map, shops, delta);
+            process_worker_fuel_haul(worker, &mut self.inventory, structure, world, delta);
         }
 
         let maybe_new_action = match &mut self.action {
-            HearthAction::Burning(burning) => process_burning(burning, delta),
+            HearthAction::Burning(burning) => continue_burning(burning, delta),
             HearthAction::Idle => process_idle(&mut self.inventory, self.hearth_worker.is_some()),
         };
 
@@ -110,31 +107,7 @@ impl Hearth {
     pub const HEIGHT: u8 = 4;
 }
 
-fn process_worker_fuel_haul(
-    worker: &mut HearthWorker,
-    inventory: &mut Inventory,
-    structure: &Structure,
-    map: &WorldMap,
-    shops: &mut LinkedList<Shop>,
-
-    delta: f32,
-) {
-    if inventory.get(&InventoryItem::Wood) > 10.0 {
-        //no need to fetch fuel - stock full
-        return;
-    }
-
-    let maybe_new_action = match &mut worker.action {
-        HearthWorkerAction::Idle => worker_start_hauling(structure, map, shops),
-        HearthWorkerAction::Haul(haul_data) => worker_continue_hauling(inventory, haul_data, delta),
-    };
-
-    if let Some(new_action) = maybe_new_action {
-        worker.action = new_action;
-    };
-}
-
-fn process_burning(
+fn continue_burning(
     action: &mut BasicAction,
     delta: f32,
 ) -> Option<HearthAction> {
@@ -152,11 +125,7 @@ fn process_idle(
     has_worker: bool,
     //delta: f32,
 ) -> Option<HearthAction> {
-    //this is weird... why do I need to dereference a float?
     let wood = inventory.get(&InventoryItem::Wood);
-
-    //if idle for the first time, this is expected - start new burning process if wood supply
-    //allows and worker is present
 
     if wood > 1.0 && has_worker {
         inventory.remove(InventoryItem::Wood, 1.0);
@@ -172,23 +141,50 @@ fn process_idle(
     //for now nothing happens
 }
 
+fn process_worker_fuel_haul(
+    worker: &mut HearthWorker,
+    inventory: &mut Inventory,
+    structure: &Structure,
+    world: &mut World,
+    delta: f32,
+) {
+    if inventory.get(&InventoryItem::Wood) > 10.0 {
+        //no need to fetch fuel - stock full
+        return;
+    }
+
+    let maybe_new_action = match &mut worker.action {
+        HearthWorkerAction::Idle => worker_start_hauling(structure, world),
+        HearthWorkerAction::Haul(haul_data) => worker_continue_hauling(inventory, haul_data, delta),
+    };
+
+    if let Some(new_action) = maybe_new_action {
+        worker.action = new_action;
+    };
+}
+
 fn worker_start_hauling(
     structure: &Structure,
-    map: &WorldMap,
-    shops: &mut LinkedList<Shop>,
+    world: &mut World,
     //delta: f32,
 ) -> Option<HearthWorkerAction> {
     info!("Worker wants to start supplying 10 wood!");
     //TODO: for now - return main store. In the future maybe search the closest store? Maybe
     //search woodcutters, if closer?
-    let (store, position) = shops.iter_mut().find_map(|s| {
-        if let ShopType::MainStore(ref mut store) = s.shop_type {
+    let (store, position) = world.shops.iter_mut().find_map(|s| {
+        if let ShopType::MainStore(store) = &mut s.shop_type {
             return Some((store, s.structure.pos));
         }
         None
     })?;
 
-    let haul_action = SupplyAction::new(structure.pos, position, map, Inventory::from_iter([(InventoryItem::Wood, 10.0)]), store)?;
+    let haul_action = SupplyAction::new(
+        structure.pos,
+        position,
+        &world.map,
+        Inventory::from_iter([(InventoryItem::Wood, 10.0)]),
+        store,
+    )?;
 
     Some(HearthWorkerAction::Haul(haul_action))
 }
