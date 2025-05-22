@@ -15,11 +15,11 @@ impl Worker {
     const FIRST_NAMES: [&str; 5] = ["Lorien", "Gaud", "Risp", "Horville", "Bargo"];
     const LAST_NAMES: [&str; 5] = ["Digger", "Smith", "Miller", "Roamer", "Laic"];
 
-    pub(crate) fn requries_break(&self) -> bool {
+    pub fn requries_break(&self) -> bool {
         todo!()
     }
 
-    pub(crate) fn process(
+    pub fn process(
         &mut self,
         delta: f32,
     ) {

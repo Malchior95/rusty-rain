@@ -5,6 +5,7 @@ use crate::world::inventory::{Inventory, InventoryItem};
 
 #[derive(Display)]
 pub enum ResourceType {
+    Tree,
     Berries,
     Herbs,
     //TODO: more - clay, stone,...

@@ -23,8 +23,8 @@ pub enum TileType {
     Empty,
     Road,
     Structure(ShopTypeDiscriminants),
-    Tree(ResourceCharge, bool),
     Resource(ResourceType, ResourceCharge, bool),
+    //Tree(ResourceCharge, bool),
 }
 
 impl PartialEq for TileType {
@@ -67,7 +67,8 @@ impl WorldMap {
         for y in 0..height {
             for x in 0..width {
                 if [0, 1, height - 2, height - 1].contains(&y) || [0, 1, width - 2, width - 1].contains(&x) {
-                    world.map[y][x] = TileType::Tree(
+                    world.map[y][x] = TileType::Resource(
+                        ResourceType::Tree,
                         ResourceCharge {
                             item_type: InventoryItem::Wood,
                             total: 10.0,
@@ -184,18 +185,37 @@ impl Display for WorldMap {
 }
 
 impl TileType {
+    pub fn new_tree() -> Self {
+        Self::Resource(
+            ResourceType::Tree,
+            ResourceCharge {
+                item_type: InventoryItem::Wood,
+                total: 10.0,
+                current: 10.0,
+            },
+            false,
+        )
+    }
+}
+
+impl TileType {
     pub fn to_char(&self) -> &str {
         match self {
             TileType::Empty => "  ",
-            TileType::Resource(_, _, _) => " ",
+            TileType::Resource(resource_type, _, _) => match resource_type {
+                ResourceType::Tree => " ",
+                ResourceType::Berries => " ",
+                ResourceType::Herbs => " ",
+                //_ => " ",
+            },
             TileType::Road => " ",
             TileType::Structure(shop_type) => match shop_type {
                 ShopTypeDiscriminants::MainHearth => " ",
-                ShopTypeDiscriminants::Woodcutter => "󰣈 ",
-                //ShopType::Herbalist => "󰧻󱔐",
+                //ShopTypeDiscriminants::Woodcutter => "󰣈 ",
+                ShopTypeDiscriminants::Gatherer => "󰧻󱔐",
                 ShopTypeDiscriminants::MainStore => "󰾁 ",
             },
-            TileType::Tree(_, _) => " ",
+            //TileType::Tree(_, _) => " ",
         }
     }
 
@@ -205,17 +225,20 @@ impl TileType {
             TileType::Resource(_, _, _) => 2.0,
             TileType::Road => 0.7,
             TileType::Structure(_) => 10.0,
-            TileType::Tree(_, _) => 10.0,
+            //TileType::Tree(_, _) => 10.0,
         }
     }
 
     pub fn is_traversible(&self) -> bool {
         match self {
             TileType::Empty => true,
-            TileType::Resource(_, _, _) => true,
+            TileType::Resource(rt, _, _) => match rt {
+                ResourceType::Tree => false,
+                _ => true,
+            },
             TileType::Road => true,
             TileType::Structure(_) => false,
-            TileType::Tree(_, _) => false,
+            //TileType::Tree(_, _) => false,
         }
     }
 }

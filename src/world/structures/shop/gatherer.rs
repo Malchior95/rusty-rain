@@ -1,49 +1,50 @@
 use std::collections::LinkedList;
 
-use log::info;
-
 use crate::{
     math::Pos,
     world::{
         World,
-        actions::{ActionResult, BasicAction, gather_resource_action::GatherResourcesAction, store_action::StoreAction},
-        inventory::{IOInventory, InventoryItem},
+        actions::{ActionResult, gather_resource_action::GatherResourcesAction, store_action::StoreAction},
+        inventory::IOInventory,
         structures::{Shop, ShopType, ShopTypeDiscriminants, Structure},
         workers::Worker,
-        world_map::{TileType, WorldMap},
+        world_map::{TileType, WorldMap, resources::ResourceType},
     },
 };
 
-pub struct Woodcutter {
+pub struct Gatherer {
     pub inventory: IOInventory,
-    pub workers: Vec<WoodcutterWorker>,
+    pub workers: Vec<GathererWorker>,
+    pub resource_type: ResourceType,
 }
 
-pub struct WoodcutterWorker {
+pub struct GathererWorker {
     pub worker: Worker,
-    pub action: WoodcutterWorkerAction,
+    pub action: GathererWorkerAction,
 }
 
 #[derive(Default)]
-pub enum WoodcutterWorkerAction {
+pub enum GathererWorkerAction {
     #[default]
     Idle,
-    Haul(StoreAction),
+    Store(StoreAction),
     GatherResouce(GatherResourcesAction),
 }
 
-impl Woodcutter {
+impl Gatherer {
     pub fn build(
         world: &mut World,
         pos: Pos,
+        resource_type: ResourceType,
     ) -> bool {
         if !world.map.can_build(pos.x, pos.y, Self::WIDTH, Self::HEIGHT) {
             return false;
         }
 
-        let woodcutter = Self {
+        let gatherer = Self {
             inventory: IOInventory::default(),
             workers: Vec::new(),
+            resource_type,
         };
 
         //FIXME: check if enterance is accessible...
@@ -57,14 +58,14 @@ impl Woodcutter {
 
         let shop = Shop {
             structure,
-            shop_type: ShopType::Woodcutter(woodcutter),
+            shop_type: ShopType::Gatherer(gatherer),
         };
 
         world.shops.push_back(shop);
 
-        world.map.build(pos.x, pos.y, Self::WIDTH, Self::HEIGHT, || {
-            TileType::Structure(ShopTypeDiscriminants::Woodcutter)
-        });
+        world
+            .map
+            .build(pos.x, pos.y, Self::WIDTH, Self::HEIGHT, || TileType::Structure(ShopTypeDiscriminants::Gatherer));
         return true;
     }
 
@@ -73,9 +74,9 @@ impl Woodcutter {
         worker: Worker,
     ) {
         //FIXME: check if can assign
-        self.workers.push(WoodcutterWorker {
+        self.workers.push(GathererWorker {
             worker,
-            action: WoodcutterWorkerAction::default(),
+            action: GathererWorkerAction::default(),
         });
     }
 
@@ -87,16 +88,16 @@ impl Woodcutter {
         delta: f32,
     ) {
         if self.workers.is_empty() {
-            return; //woodcutter cannot operate if no workers
+            return; //gatherer cannot operate if no workers
         }
 
         //TODO: for now just find the main store. In the future - maybe find the closest one
 
         for worker in &mut self.workers {
             let maybe_new_action = match &mut worker.action {
-                WoodcutterWorkerAction::Idle => worker_start_work(&mut self.inventory, shops, map, structure.enterance),
-                WoodcutterWorkerAction::Haul(store_action) => worker_continue_storing(store_action, shops, delta),
-                WoodcutterWorkerAction::GatherResouce(gather_resource_action) => {
+                GathererWorkerAction::Idle => worker_start_work(&mut self.inventory, shops, map, &self.resource_type, structure.enterance),
+                GathererWorkerAction::Store(store_action) => worker_continue_storing(store_action, shops, delta),
+                GathererWorkerAction::GatherResouce(gather_resource_action) => {
                     worker_continue_gathering_resources(gather_resource_action, map, &mut self.inventory, delta)
                 }
             };
@@ -116,11 +117,11 @@ fn worker_continue_gathering_resources(
     map: &mut WorldMap,
     inventory: &mut IOInventory,
     delta: f32,
-) -> Option<WoodcutterWorkerAction> {
+) -> Option<GathererWorkerAction> {
     let result = gather_resource_action.process(map, &mut inventory.output, delta);
 
     if let ActionResult::Completed = result {
-        return Some(WoodcutterWorkerAction::Idle);
+        return Some(GathererWorkerAction::Idle);
     }
     None
 }
@@ -130,7 +131,7 @@ fn worker_continue_storing(
 
     shops: &mut LinkedList<Shop>,
     delta: f32,
-) -> Option<WoodcutterWorkerAction> {
+) -> Option<GathererWorkerAction> {
     //TODO: if no store - it means the store was destroyed! What do? For now - remain in the
     //current action, but do not progress
     //FIXME: how to ensure I find the same store that was ogirinally selected? Maybe check what
@@ -148,15 +149,16 @@ fn worker_continue_storing(
         return None; //continue hauling - do not change state
     }
 
-    Some(WoodcutterWorkerAction::Idle)
+    Some(GathererWorkerAction::Idle)
 }
 
 fn worker_start_work(
     inventory: &mut IOInventory,
     shops: &mut LinkedList<Shop>,
     map: &mut WorldMap,
+    resource_type: &ResourceType,
     start: Pos,
-) -> Option<WoodcutterWorkerAction> {
+) -> Option<GathererWorkerAction> {
     if inventory.is_full() {
         let position = shops.iter_mut().find_map(|s| {
             if let ShopType::MainStore(_) = &mut s.shop_type {
@@ -169,11 +171,17 @@ fn worker_start_work(
 
         let haul_action = StoreAction::new(start, position, map, &mut inventory.output)?;
 
-        return Some(WoodcutterWorkerAction::Haul(haul_action));
+        return Some(GathererWorkerAction::Store(haul_action));
     }
 
     //gather tree that is not being cut
-    let gather_action = GatherResourcesAction::new(start, map, 10.0, |t| if let TileType::Tree(_, being_cut) = t { !being_cut } else { false })?;
+    let gather_action = GatherResourcesAction::new(start, map, 10.0, |t| {
+        if let TileType::Resource(rt, _, being_cut) = t {
+            rt == resource_type && !being_cut
+        } else {
+            false
+        }
+    })?;
 
-    Some(WoodcutterWorkerAction::GatherResouce(gather_action))
+    Some(GathererWorkerAction::GatherResouce(gather_action))
 }

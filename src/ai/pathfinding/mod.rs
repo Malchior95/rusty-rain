@@ -1,4 +1,4 @@
-use std::collections::{BinaryHeap, HashMap, LinkedList};
+use std::collections::{BinaryHeap, HashMap};
 
 pub mod debug_path_drawer;
 
@@ -11,7 +11,7 @@ use crate::{math::Pos, world::world_map::WorldMap};
 
 const HEURISTICS_INFLUENCE: f32 = 0.5;
 
-pub fn breadth_first_closest_nontraversible<F>(
+pub fn dijkstra_closest_nontraversible<F>(
     map: &WorldMap,
     start: Pos,
     tile_type_check: F,
@@ -19,14 +19,19 @@ pub fn breadth_first_closest_nontraversible<F>(
 where
     F: Fn(&TileType) -> bool,
 {
-    let mut frontier: LinkedList<Pos> = LinkedList::new();
-    frontier.push_front(start);
+    let start_cost = WithPriority::default(start);
+
+    let mut frontier: BinaryHeap<WithPriority<Pos>> = BinaryHeap::new();
+    frontier.push(start_cost);
 
     let mut came_from: HashMap<Pos, Option<Pos>> = HashMap::new();
     came_from.insert(start, None);
 
+    let mut cost_so_far: HashMap<Pos, f32> = HashMap::new();
+    cost_so_far.insert(start, 0.0);
+
     while !frontier.is_empty() {
-        let current = frontier.pop_front().unwrap();
+        let current = frontier.pop().unwrap().unpack();
         //if frontier is empty
 
         //found 'end'
@@ -37,8 +42,19 @@ where
 
         //continue search
         for next in get_neighbours(map, &current) {
-            if !came_from.contains_key(&next) {
-                frontier.push_back(next);
+            let cost = cost_so_far[&current] + map.get(&next).cost();
+
+            let cost_exists = cost_so_far.contains_key(&next);
+
+            if !cost_exists {
+                cost_so_far.insert(next, cost);
+            }
+
+            if !cost_exists || cost < cost_so_far[&next] {
+                cost_so_far.insert(next, cost);
+
+                let priority = cost;
+                frontier.push(WithPriority::new(next, -priority));
 
                 came_from.insert(next, Some(current));
             }

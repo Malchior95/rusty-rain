@@ -4,10 +4,10 @@ use std::{array::from_fn, collections::LinkedList, sync::atomic::Ordering};
 use inventory::InventoryItem;
 use structures::{
     Shop, ShopType,
-    shop::{hearth::Hearth, store::Store, woodcutter::Woodcutter},
+    shop::{gatherer::Gatherer, hearth::Hearth, store::Store},
 };
 use workers::Worker;
-use world_map::{TileType, WorldMap};
+use world_map::{TileType, WorldMap, resources::ResourceType};
 
 pub mod actions;
 pub mod inventory;
@@ -36,6 +36,26 @@ impl World {
         (3..7).map(|y| Pos::new(3, y)).for_each(|p| map.map[p.y][p.x] = TileType::Road);
         (3..8).map(|x| Pos::new(x, 6)).for_each(|p| map.map[p.y][p.x] = TileType::Road);
 
+        *map.get_mut(&Pos::new(3, 12)) = TileType::Resource(
+            ResourceType::Berries,
+            world_map::resources::ResourceCharge {
+                item_type: InventoryItem::Berries,
+                total: 25.0,
+                current: 25.0,
+            },
+            false,
+        );
+
+        *map.get_mut(&Pos::new(3, 7)) = TileType::Resource(
+            ResourceType::Tree,
+            world_map::resources::ResourceCharge {
+                item_type: InventoryItem::Wood,
+                total: 25.0,
+                current: 25.0,
+            },
+            false,
+        );
+
         let mut world = World {
             map,
             shops: LinkedList::new(),
@@ -52,10 +72,10 @@ impl World {
             }
         }
 
-        let built = Woodcutter::build(&mut world, Pos::new(11, 4));
+        let built = Gatherer::build(&mut world, Pos::new(11, 4), ResourceType::Tree);
 
         if built {
-            if let ShopType::Woodcutter(woodcutter) = &mut world.shops.back_mut().unwrap().shop_type {
+            if let ShopType::Gatherer(woodcutter) = &mut world.shops.back_mut().unwrap().shop_type {
                 let worker = world.unassigned_workers.pop_back().unwrap();
                 woodcutter.assign_worker(worker);
 
@@ -72,6 +92,15 @@ impl World {
         if built {
             if let ShopType::MainStore(store) = &mut world.shops.back_mut().unwrap().shop_type {
                 store.inventory.add(InventoryItem::Wood, 50.0);
+            }
+        }
+
+        let built = Gatherer::build(&mut world, Pos::new(8, 3), ResourceType::Berries);
+
+        if built {
+            if let ShopType::Gatherer(herbalist) = &mut world.shops.back_mut().unwrap().shop_type {
+                let worker = world.unassigned_workers.pop_back().unwrap();
+                herbalist.assign_worker(worker);
             }
         }
 

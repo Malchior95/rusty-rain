@@ -21,7 +21,7 @@ impl Store {
             return false;
         }
 
-        let woodcutter = Self { inventory: Inventory::new() };
+        let store = Self { inventory: Inventory::new() };
 
         //FIXME: check if enterance is accessible...
 
@@ -34,7 +34,7 @@ impl Store {
 
         let shop = Shop {
             structure,
-            shop_type: ShopType::MainStore(woodcutter),
+            shop_type: ShopType::MainStore(store),
         };
 
         world.shops.push_back(shop);

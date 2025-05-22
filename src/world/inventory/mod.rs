@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use log::info;
 use strum_macros::Display;
 
 pub struct IOInventory {
@@ -66,8 +65,6 @@ impl Inventory {
     ) {
         let current_amount = self.get(&item);
         self.0.insert(item, current_amount + amount);
-
-        info!("- added {} to inventory - current amount {}", item, current_amount + amount);
     }
 
     pub fn remove(
@@ -77,8 +74,6 @@ impl Inventory {
     ) {
         let current_amount = self.get(&item);
         self.0.insert(item, current_amount - amount);
-
-        info!("- removed {} from inventory - current amount {}", item, current_amount - amount);
     }
 
     pub fn drain(&mut self) -> std::collections::hash_map::Drain<InventoryItem, f32> {

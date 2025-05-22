@@ -5,7 +5,7 @@ use crate::{
     math::Pos,
     world::{
         inventory::Inventory,
-        world_map::{TileType, WorldMap, resources::ResourceType},
+        world_map::{TileType, WorldMap},
     },
 };
 
@@ -37,7 +37,7 @@ impl GatherResourcesAction {
     {
         info!("Worker wants to gather resources!");
 
-        let path = pathfinding::breadth_first_closest_nontraversible(map, from, &tile_type_check)?;
+        let path = pathfinding::dijkstra_closest_nontraversible(map, from, &tile_type_check)?;
         if path.is_empty() {
             return None;
         }
@@ -46,7 +46,7 @@ impl GatherResourcesAction {
 
         let resource_location = path.last().unwrap();
         match map.get_mut(resource_location) {
-            TileType::Tree(_, being_cut) => *being_cut = true,
+            //TileType::Tree(_, being_cut) => *being_cut = true,
             TileType::Resource(_, _, being_cut) => *being_cut = true,
             _ => {}
         }
@@ -85,19 +85,6 @@ impl GatherResourcesAction {
                 let total_path_cost = self.path_cost.iter().sum::<f32>();
 
                 match resource_tile {
-                    TileType::Tree(resource_charge, being_cut) => {
-                        let mut gathered_resources = resource_charge.gather();
-
-                        for (key, amount) in gathered_resources.drain() {
-                            self.inventory.add(key, amount);
-                        }
-                        *being_cut = false;
-                        info!("Worker gathered wood!");
-                        if resource_charge.current <= 0.0 {
-                            *resource_tile = TileType::Empty;
-                            info!("resource node depleted at {}!", resource_pos);
-                        }
-                    }
                     TileType::Resource(resource_type, resource_charge, being_cut) => {
                         let mut gathered_resources = resource_charge.gather();
 
