@@ -12,15 +12,17 @@ Curently the base features of the game are being implemented, and still subject
 to change:
 
 - base world representation
-- base structures like hearth, store, gathering huts
-- base AI and pathfinding
+- base structures like hearth, store, gathering huts, production buildings,
+- base AI and pathfinding, including worker breaks,
 
 Currently not implemented, but should be the short-term focus:
 
-- generalizing woodcutter for other gathering huts
-- production huts
-- advanced worker logic - breaks, food and mood
-- housing, vanity buildings
+- tests! The game is growing and I need some reliable test setups
+- refining gathering and production buildings - allow building to gather
+  multiple nodes, or producer to produce mutiple different receipes
+- advanced worker logic - food and mood
+- housing, vanity buildings - I would like the worker to be affected by the
+  parks and status, as they walk past them. Kind of like in Oxygen Not Included.
 - world generation
 
 The longterm tasks, that won't be started soon

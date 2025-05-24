@@ -134,9 +134,6 @@ impl Worker {
         })
     }
 
-    const FIRST_NAMES: [&'static str; 5] = ["Lorien", "Gaud", "Risp", "Horville", "Bargo"];
-    const LAST_NAMES: [&'static str; 5] = ["Digger", "Smith", "Miller", "Kowalski", "Laic"];
-
     pub fn continue_action(
         &mut self,
         delta: f32,
