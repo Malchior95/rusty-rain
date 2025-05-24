@@ -1,11 +1,11 @@
 use std::fmt::Display;
 
 use resources::{ResourceCharge, ResourceType};
-use strum_macros::{Display, EnumDiscriminants, EnumIs};
+use strum_macros::{Display, EnumDiscriminants};
 
 use crate::math::Pos;
 
-use super::structures::ShopTypeDiscriminants;
+use super::structures::{ShopTypeDiscriminants, Structure};
 pub mod resources;
 
 pub struct WorldMap {
@@ -82,40 +82,34 @@ impl WorldMap {
     /// you are risking a panic or invalid game state
     pub fn build<F>(
         &mut self,
-        x: usize,
-        y: usize,
-        width: u8,
-        height: u8,
+        str: &Structure,
         mut tile_type_factory: F,
     ) where
         F: FnMut() -> TileType,
     {
         //TODO: cloning occurs here. Can I disable cloning and create new items? How to do?
-        for h in 0..height {
-            for w in 0..width {
-                self.map[y + h as usize][x + w as usize] = tile_type_factory();
+        for h in 0..str.height {
+            for w in 0..str.width {
+                self.map[str.pos.y + h as usize][str.pos.x + w as usize] = tile_type_factory();
             }
         }
     }
 
     pub fn can_build(
         &self,
-        x: usize,
-        y: usize,
-        width: u8,
-        height: u8,
+        str: &Structure,
     ) -> bool {
-        if y + height as usize >= self.height() {
+        if str.pos.y + str.height as usize >= self.height() {
             return false;
         }
 
-        if x + width as usize >= self.width() {
+        if str.pos.x + str.width as usize >= self.width() {
             return false;
         }
 
-        for h in 0..height {
-            for w in 0..width {
-                if self.map[y + h as usize][x + w as usize] != TileType::Empty {
+        for h in 0..str.height {
+            for w in 0..str.width {
+                if self.map[str.pos.y + h as usize][str.pos.x + w as usize] != TileType::Empty {
                     return false;
                 }
             }
@@ -192,9 +186,9 @@ impl TileType {
             TileType::Road => " ",
             TileType::Structure(shop_type) => match shop_type {
                 ShopTypeDiscriminants::MainHearth => " ",
-                //ShopTypeDiscriminants::Woodcutter => "󰣈 ",
                 ShopTypeDiscriminants::Gatherer => "󰧻󱔐",
                 ShopTypeDiscriminants::MainStore => "󰾁 ",
+                ShopTypeDiscriminants::Producer => "󰈏 ",
             },
             //TileType::Tree(_, _) => " ",
         }

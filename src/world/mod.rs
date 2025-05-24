@@ -1,21 +1,15 @@
 use crate::{FRAME_NUM, math::Pos};
-use std::{array::from_fn, collections::LinkedList, sync::atomic::Ordering};
+use std::{collections::LinkedList, sync::atomic::Ordering};
 
 use actions::BasicAction;
 use inventory::{Inventory, InventoryItem};
-use structures::{
-    Shop, ShopType,
-    shop::{
-        gatherer,
-        hearth::{self, Hearth},
-        store::{self, Store},
-    },
-};
+use structures::{ShopType, builders};
 use workers::{Idle, Worker, WorkerWithAction};
 use world_map::{TileType, WorldMap, resources::ResourceType};
 
 pub mod actions;
 pub mod inventory;
+pub mod receipes;
 pub mod structures;
 pub mod workers;
 pub mod world_map;
@@ -55,37 +49,49 @@ impl World {
             unassigned_workers: LinkedList::new(),
         };
 
-        let maybe_hearth = hearth::build_hearth(&mut world, Pos::new(width / 2, height / 2));
-        if let Some(hearth) = maybe_hearth {
-            hearth.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
-                name: "Hearth tender".to_string(),
-                inventory: Inventory::limited(5.0),
-                pos: hearth.structure.pos,
-                break_progress: BasicAction::new(120.0),
-                action_data: Idle(),
-            }));
-        };
+        //let maybe_hearth = builders::build_hearth(&mut world, Pos::new(width / 2, height / 2));
+        //if let Some(hearth) = maybe_hearth {
+        //    hearth.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
+        //        name: "Hearth tender".to_string(),
+        //        inventory: Inventory::limited(5.0),
+        //        pos: hearth.structure.pos,
+        //        break_progress: BasicAction::new(120.0),
+        //        action_data: Idle(),
+        //    }));
+        //};
 
-        let maybe_store = store::build_store(&mut world, Pos::new(4, 3));
+        let maybe_store = builders::build_mainstore(&mut world, Pos::new(4, 3));
         if let Some(store) = maybe_store {
             store.output.add(InventoryItem::Wood, 40.0);
         }
 
-        let maybe_woodcutter = gatherer::build_gatherer(&mut world, Pos::new(11, 5), ResourceType::Tree);
+        //let maybe_woodcutter = builders::build_woodcutter(&mut world, Pos::new(11, 5));
 
-        if let Some(woodcutter) = maybe_woodcutter {
-            woodcutter.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
-                name: "Woodchuck Chuck".to_string(),
-                inventory: Inventory::limited(5.0),
-                pos: woodcutter.structure.pos,
-                break_progress: BasicAction::new(120.0),
-                action_data: Idle(),
-            }));
+        //if let Some(woodcutter) = maybe_woodcutter {
+        //    woodcutter.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
+        //        name: "Woodchuck Chuck".to_string(),
+        //        inventory: Inventory::limited(5.0),
+        //        pos: woodcutter.structure.pos,
+        //        break_progress: BasicAction::new(120.0),
+        //        action_data: Idle(),
+        //    }));
 
-            woodcutter.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
-                name: "Norris".to_string(),
+        //    woodcutter.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
+        //        name: "Norris".to_string(),
+        //        inventory: Inventory::limited(5.0),
+        //        pos: woodcutter.structure.pos,
+        //        break_progress: BasicAction::new(120.0),
+        //        action_data: Idle(),
+        //    }));
+        //};
+
+        let maybe_lumbermill = builders::build_lumbermill(&mut world, Pos::new(5, 9));
+
+        if let Some(lumbermill) = maybe_lumbermill {
+            lumbermill.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
+                name: "Jane".to_string(),
                 inventory: Inventory::limited(5.0),
-                pos: woodcutter.structure.pos,
+                pos: lumbermill.structure.pos,
                 break_progress: BasicAction::new(120.0),
                 action_data: Idle(),
             }));

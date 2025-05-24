@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::hash::Hash;
 
-use log::error;
 use strum_macros::Display;
 
 #[derive(Hash, PartialEq, Eq, Copy, Clone, Display)]
@@ -11,7 +10,7 @@ pub enum InventoryItem {
     Resin,
     Berries,
     Herbs,
-    //TODO: more
+    Plank, //TODO: more
 }
 
 #[derive(Clone)]
@@ -82,13 +81,11 @@ impl Inventory {
         }
     }
 
-    pub fn add_range<T>(
+    pub fn add_range(
         &mut self,
-        iter: T,
-    ) where
-        T: IntoIterator<Item = (InventoryItem, f32)>,
-    {
-        for (key, item) in iter {
+        to_add: &Inventory,
+    ) {
+        for (&key, &item) in to_add.iter() {
             self.add(key, item);
         }
     }
@@ -122,6 +119,15 @@ impl Inventory {
         self.inv.insert(item, current_amount - amount);
     }
 
+    pub fn remove_range(
+        &mut self,
+        to_remove: &Inventory,
+    ) {
+        for (&key, &amount) in to_remove.iter() {
+            self.remove(key, amount);
+        }
+    }
+
     pub fn drain(&mut self) -> std::collections::hash_map::Drain<InventoryItem, f32> {
         self.inv.drain()
     }
@@ -149,5 +155,17 @@ impl Inventory {
                 target.add(key, to_transfer);
             }
         }
+    }
+
+    pub fn has_at_least(
+        &self,
+        other: &Inventory,
+    ) -> bool {
+        for (key, item) in other.iter() {
+            if self.get(&key) < *item {
+                return false;
+            }
+        }
+        true
     }
 }

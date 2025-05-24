@@ -4,6 +4,7 @@ use super::world_map::WorldMap;
 
 pub mod gathering_action;
 pub mod taking_break_action;
+
 #[derive(Clone)]
 pub struct BasicAction {
     pub progress: f32,

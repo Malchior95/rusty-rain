@@ -2,8 +2,7 @@ use crate::{
     math::Pos,
     world::{
         inventory::Inventory,
-        workers::{Idle, Worker, WorkerWithAction},
-        world_map::{TileType, WorldMap, resources},
+        world_map::{TileType, WorldMap},
     },
 };
 

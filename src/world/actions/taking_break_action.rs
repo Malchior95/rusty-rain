@@ -1,10 +1,4 @@
-use crate::{
-    math::Pos,
-    world::{
-        inventory::Inventory,
-        world_map::{TileType, WorldMap, resources},
-    },
-};
+use crate::{math::Pos, world::world_map::WorldMap};
 
 use super::{ActionResult, BasicAction, TransitAction, TransitActionResult};
 

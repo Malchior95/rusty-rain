@@ -1,18 +1,14 @@
 use log::info;
-use strum::IntoDiscriminant;
 
-use crate::{
-    ai::pathfinding::pathfinding_helpers::{self},
-    math::Pos,
-    world::{
-        World,
-        actions::{ActionResult, BasicAction},
-        inventory::{Inventory, InventoryItem},
-        structures::{Shop, ShopType, ShopTypeDiscriminants, Structure},
-        workers::{Worker, WorkerActionResult},
-        world_map::TileType,
-    },
+use crate::world::{
+    World,
+    actions::{ActionResult, BasicAction},
+    inventory::{Inventory, InventoryItem},
+    structures::Shop,
+    workers::WorkerActionResult,
 };
+
+use super::shared;
 
 pub struct Hearth {
     pub action: HearthAction,
@@ -23,46 +19,6 @@ pub struct Hearth {
 pub enum HearthAction {
     Idle,
     Burning(BasicAction),
-}
-
-pub fn build_hearth<'a>(
-    world: &'a mut World,
-    pos: Pos,
-) -> Option<&'a mut Shop<Hearth>> {
-    if !world.map.can_build(pos.x, pos.y, Hearth::WIDTH, Hearth::HEIGHT) {
-        return None;
-    }
-
-    let hearth = Hearth {
-        action: HearthAction::Idle,
-        inventory: Inventory::from_iter([(InventoryItem::Wood, 10.0)]),
-    };
-
-    let shop = Shop {
-        structure: Structure {
-            pos,
-            height: Hearth::HEIGHT,
-            width: Hearth::WIDTH,
-        },
-        workers: Vec::with_capacity(Hearth::MAX_WORKERS as usize),
-        max_workers: Hearth::MAX_WORKERS,
-        output: Inventory::new(),
-        data: hearth,
-    };
-
-    let shop_type = ShopType::MainHearth(shop);
-
-    world.map.build(pos.x, pos.y, Hearth::WIDTH, Hearth::HEIGHT, || {
-        TileType::Structure(ShopTypeDiscriminants::MainHearth)
-    });
-
-    world.shops.push_back(shop_type);
-
-    //return to user for modifications
-    if let ShopType::MainHearth(shop) = world.shops.back_mut().unwrap() {
-        return Some(shop);
-    }
-    panic!("std lib failed");
 }
 
 impl Hearth {
@@ -102,10 +58,11 @@ impl Shop<Hearth> {
         world: &mut World,
         delta: f32,
     ) {
+        let shop_id = &"Hearth".to_string();
         for worker in &mut self.workers {
             let mut result = worker.continue_action(delta, self.structure.pos, &mut world.map);
 
-            match result {
+            match &mut result {
                 WorkerActionResult::InProgress => {
                     //continue action
                 }
@@ -113,19 +70,15 @@ impl Shop<Hearth> {
                 WorkerActionResult::BroughtToStore(_, _) => {
                     //hearth worker does not expect to be bringing anything to store - i.e. it does
                     //not invoke idle_worker.to_storing()
+                    unreachable!("Hearth will never provide to store.");
                 }
 
-                WorkerActionResult::BroughtToShop(ref mut inventory) => {
-                    if inventory.is_empty() {
-                        continue;
-                    }
-                    info!(
-                        "The following materials were added to Hearth's inventory: {}",
-                        inventory
-                    );
-                    self.data.inventory.add_range(inventory.drain());
+                WorkerActionResult::ProductionComplete(_) => {
+                    unreachable!("Hearth will never produce.");
+                }
 
-                    info!("Hearth has total items: {}", self.data.inventory);
+                WorkerActionResult::BroughtToShop(inventory) => {
+                    shared::handle_supply_complete(inventory, &mut self.data.inventory, shop_id);
                 }
 
                 WorkerActionResult::Idle => {
@@ -134,34 +87,14 @@ impl Shop<Hearth> {
                         continue;
                     }
 
-                    if let Worker::Idle(idle_worker) = worker {
-                        let (closest_shop, path) = if let Some(x) =
-                            pathfinding_helpers::closest_shop(self.structure.pos, &world.map, &mut world.shops, |s| {
-                                s.inventory().get(&InventoryItem::Wood) >= Hearth::MIN_MATERIALS_TO_CONSIDER_SUPPLYING
-                            }) {
-                            x
-                        } else {
-                            info!("Hearth has no suitable stores with wood nearby.");
-                            continue; //remain idle
-                        };
-
-                        let stored_wood = closest_shop.inventory().get(&InventoryItem::Wood);
-                        let to_take = f32::min(stored_wood, idle_worker.inventory.limit);
-
-                        closest_shop.inventory_mut().remove(InventoryItem::Wood, to_take);
-                        let reservation = Inventory::from_iter([(InventoryItem::Wood, to_take)]);
-
-                        info!(
-                            "{} will be supplying {} from {} at {}. Remaining in the store: {}.",
-                            idle_worker.name,
-                            reservation,
-                            closest_shop.discriminant(),
-                            path.last().unwrap(),
-                            closest_shop.inventory()
-                        );
-
-                        *worker = idle_worker.to_supplying(path, &world.map, reservation);
-                    }
+                    shared::supply_command(
+                        worker,
+                        self.structure.pos,
+                        world,
+                        Hearth::MIN_MATERIALS_TO_CONSIDER_SUPPLYING,
+                        InventoryItem::Wood,
+                        shop_id,
+                    );
                 }
             }
         }

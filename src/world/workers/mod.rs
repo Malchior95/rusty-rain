@@ -1,5 +1,4 @@
 use log::info;
-use rand::{rng, seq::IndexedRandom};
 
 use crate::{
     ai::pathfinding,
@@ -15,6 +14,7 @@ use super::{
         taking_break_action::TakingBreakAction,
     },
     inventory::Inventory,
+    receipes::Receipe,
     world_map::WorldMap,
 };
 
@@ -49,6 +49,7 @@ pub struct InHearth();
 pub struct SupplyingAction(TransitAction);
 pub struct StoringAction(TransitAction);
 pub struct ReturningAction(TransitAction);
+pub struct ProducingAction(BasicAction, Receipe);
 
 impl CanReturn for SupplyingAction {}
 impl CanReturn for StoringAction {}
@@ -65,6 +66,8 @@ pub enum Worker {
     Returning(WorkerWithAction<ReturningAction>),
 
     TakingBreak(WorkerWithAction<TakingBreakAction>),
+
+    Producing(WorkerWithAction<ProducingAction>),
 
     ////not assigned actions
     //ReturningToHearth(UnassignedWorkerWithAction<ReturningAction>),
@@ -84,6 +87,7 @@ pub enum WorkerActionResult {
     InProgress,
     BroughtToShop(Inventory),
     BroughtToStore(Inventory, Pos),
+    ProductionComplete(Receipe),
     Idle,
 }
 
@@ -226,7 +230,7 @@ impl Worker {
                     worker.pos = pos;
                 }
                 GatheringActionResult::Completed(mut inv) => {
-                    worker.inventory.add_range(inv.drain());
+                    worker.inventory.add_range(&mut inv);
 
                     info!(
                         "{} has gathered items at {} and is now returning.",
@@ -239,6 +243,24 @@ impl Worker {
                     return WorkerActionResult::InProgress;
                 }
             }
+            return WorkerActionResult::InProgress;
+        }
+
+        if let Self::Producing(worker) = self {
+            worker.progress_break_requirement(delta);
+            let result = worker.action_data.0.continue_action(delta);
+
+            match result {
+                ActionResult::InProgress => {}
+                ActionResult::Completed => {
+                    info!("{} has completed production.", worker.name);
+                    let receipe = worker.action_data.1.clone();
+
+                    *self = worker.to_idle();
+                    return WorkerActionResult::ProductionComplete(receipe);
+                }
+            }
+
             return WorkerActionResult::InProgress;
         }
 
@@ -284,6 +306,12 @@ impl Worker {
 }
 
 impl WorkerWithAction<ReturningAction> {
+    fn to_idle(&self) -> Worker {
+        Worker::Idle(WorkerWithAction::clone_with(self, Idle {}))
+    }
+}
+
+impl WorkerWithAction<ProducingAction> {
     fn to_idle(&self) -> Worker {
         Worker::Idle(WorkerWithAction::clone_with(self, Idle {}))
     }
@@ -346,7 +374,7 @@ impl WorkerWithAction<Idle> {
             self.name, reservation
         );
         let mut new_inv = self.inventory.clone();
-        new_inv.add_range(reservation.drain());
+        new_inv.add_range(&mut reservation);
         Worker::Supplying(WorkerWithAction {
             name: self.name.clone(),
             inventory: new_inv,
@@ -368,6 +396,16 @@ impl WorkerWithAction<Idle> {
             self.pos
         );
         Worker::Gathering(WorkerWithAction::clone_with(self, GatheringAction::new(path, map)))
+    }
+
+    pub fn to_producing(
+        &mut self,
+        receipe: &Receipe,
+    ) -> Worker {
+        Worker::Producing(WorkerWithAction::clone_with(
+            self,
+            ProducingAction(BasicAction::new(receipe.requirement), receipe.clone()),
+        ))
     }
 }
 
