@@ -76,7 +76,7 @@ impl Hearth {
     //TODO: maybe take workers inventory capacity into accout?
     pub const MIN_MATERIALS_TO_CONSIDER_SUPPLYING: f32 = 5.0;
 
-    pub const WOOD_BURNING_RATE: f32 = 60.0;
+    pub const WOOD_BURNING_RATE: f32 = 20.0;
 }
 
 impl Shop<Hearth> {
@@ -123,9 +123,9 @@ impl Shop<Hearth> {
                         "The following materials were added to Hearth's inventory: {}",
                         inventory
                     );
-                    self.output.add_range(inventory.drain());
+                    self.data.inventory.add_range(inventory.drain());
 
-                    info!("Hearth has total items: {}", self.output);
+                    info!("Hearth has total items: {}", self.data.inventory);
                 }
 
                 WorkerActionResult::Idle => {

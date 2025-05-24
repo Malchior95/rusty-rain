@@ -64,13 +64,11 @@ impl World {
                 break_progress: BasicAction::new(120.0),
                 action_data: Idle(),
             }));
-
-            hearth.data.inventory.add(InventoryItem::Wood, 100.0);
         };
 
         let maybe_store = store::build_store(&mut world, Pos::new(4, 3));
         if let Some(store) = maybe_store {
-            store.output.add(InventoryItem::Wood, 100.0);
+            store.output.add(InventoryItem::Wood, 40.0);
         }
 
         let maybe_woodcutter = gatherer::build_gatherer(&mut world, Pos::new(11, 5), ResourceType::Tree);
@@ -78,6 +76,14 @@ impl World {
         if let Some(woodcutter) = maybe_woodcutter {
             woodcutter.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
                 name: "Woodchuck Chuck".to_string(),
+                inventory: Inventory::limited(5.0),
+                pos: woodcutter.structure.pos,
+                break_progress: BasicAction::new(120.0),
+                action_data: Idle(),
+            }));
+
+            woodcutter.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
+                name: "Norris".to_string(),
                 inventory: Inventory::limited(5.0),
                 pos: woodcutter.structure.pos,
                 break_progress: BasicAction::new(120.0),
