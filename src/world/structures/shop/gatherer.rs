@@ -1,189 +1,195 @@
-use std::collections::LinkedList;
+use std::{collections::LinkedList, error};
+
+use log::{error, info};
 
 use crate::{
+    ai::pathfinding::{self, pathfinding_helpers},
     math::Pos,
     world::{
         World,
-        actions::{ActionResult, gather_resource_action::GatherResourcesAction, store_action::StoreAction},
-        inventory::Inventory,
+        actions::ActionResult,
+        inventory::{Inventory, InventoryItem},
         structures::{Shop, ShopType, ShopTypeDiscriminants, Structure},
-        workers::Worker,
+        workers::{Worker, WorkerActionResult},
         world_map::{TileType, WorldMap, resources::ResourceType},
     },
 };
 
 pub struct Gatherer {
-    pub inventory: Inventory,
-    pub workers: Vec<GathererWorker>,
     pub resource_type: ResourceType,
-}
-
-pub struct GathererWorker {
-    pub worker: Worker,
-    pub action: GathererWorkerAction,
-}
-
-#[derive(Default)]
-pub enum GathererWorkerAction {
-    #[default]
-    Idle,
-    Store(StoreAction),
-    GatherResource(GatherResourcesAction),
+    pub storing_all: bool,
 }
 
 impl Gatherer {
-    pub fn build(
-        world: &mut World,
-        pos: Pos,
-        resource_type: ResourceType,
-    ) -> bool {
-        if !world.map.can_build(pos.x, pos.y, Self::WIDTH, Self::HEIGHT) {
-            return false;
-        }
+    pub const WIDTH: u8 = 2;
+    pub const HEIGHT: u8 = 2;
 
-        let gatherer = Self {
-            inventory: Inventory::limited(10.0),
-            workers: Vec::new(),
-            resource_type,
-        };
+    pub const MAX_WORKERS: u8 = 2;
+}
 
-        let structure = Structure {
+pub fn build_gatherer<'a>(
+    world: &'a mut World,
+    pos: Pos,
+    resource_type: ResourceType,
+) -> Option<&'a mut Shop<Gatherer>> {
+    if !world.map.can_build(pos.x, pos.y, Gatherer::WIDTH, Gatherer::HEIGHT) {
+        return None;
+    }
+
+    let gatherer = Gatherer {
+        resource_type,
+        storing_all: false,
+    };
+
+    let shop = Shop {
+        structure: Structure {
             pos,
-            height: Self::HEIGHT,
-            width: Self::WIDTH,
-        };
+            height: Gatherer::HEIGHT,
+            width: Gatherer::WIDTH,
+        },
+        workers: Vec::with_capacity(Gatherer::MAX_WORKERS as usize),
+        max_workers: Gatherer::MAX_WORKERS,
+        output: Inventory::limited(10.0),
+        data: gatherer,
+    };
 
-        let shop = Shop {
-            structure,
-            shop_type: ShopType::Gatherer(gatherer),
-        };
+    let shop_type = ShopType::Gatherer(shop);
 
-        world.shops.push_back(shop);
+    world.map.build(pos.x, pos.y, Gatherer::WIDTH, Gatherer::HEIGHT, || {
+        TileType::Structure(ShopTypeDiscriminants::Gatherer)
+    });
 
-        world.map.build(pos.x, pos.y, Self::WIDTH, Self::HEIGHT, || {
-            TileType::Structure(ShopTypeDiscriminants::Gatherer)
-        });
-        return true;
+    world.shops.push_back(shop_type);
+
+    //return to user for modifications
+    if let ShopType::Gatherer(shop) = world.shops.back_mut().unwrap() {
+        return Some(shop);
     }
+    panic!("std lib failed");
+}
 
-    pub fn assign_worker(
-        &mut self,
-        worker: Worker,
-    ) {
-        //FIXME: check if can assign
-        self.workers.push(GathererWorker {
-            worker,
-            action: GathererWorkerAction::default(),
-        });
-    }
-
+impl Shop<Gatherer> {
     pub fn process(
         &mut self,
-        structure: &Structure,
         world: &mut World,
         delta: f32,
     ) {
-        if self.workers.is_empty() {
-            return; //gatherer cannot operate if no workers
-        }
-
         for worker in &mut self.workers {
-            let maybe_new_action = match &mut worker.action {
-                GathererWorkerAction::Idle => {
-                    worker_start_work(&mut self.inventory, world, &self.resource_type, structure.pos)
-                }
-                GathererWorkerAction::Store(store_action) => {
-                    worker_continue_storing(store_action, &mut world.shops, delta)
-                }
-                GathererWorkerAction::GatherResource(gather_resource_action) => worker_continue_gathering_resources(
-                    gather_resource_action,
-                    &mut world.map,
-                    &mut self.inventory,
-                    delta,
-                ),
-            };
+            let mut result = worker.continue_action(delta, self.structure.pos, &mut world.map);
 
-            if let Some(action) = maybe_new_action {
-                worker.action = action;
+            match result {
+                WorkerActionResult::InProgress => {
+                    //continue action
+                }
+
+                WorkerActionResult::BroughtToStore(ref mut inventory, pos) => {
+                    if inventory.is_empty() {
+                        error!("Worker was bringing empty inventory to the store!");
+                        continue;
+                    }
+
+                    //TODO: in the future I might want to store not only in the store, but in the
+                    //closest shop that requires those resources. Then I would not want to put to
+                    //output (as in the store), but to the input or data.inventory (as in Hearth)
+                    let maybe_store = world.shops.iter_mut().find(|s| s.location() == pos);
+
+                    let store = if let Some(store) = maybe_store {
+                        store
+                    } else {
+                        //store is not where it was before - return to building?
+
+                        error!("Worker was bringing items to the store, but the store is gone!");
+                        //FIXME:
+                        panic!()
+                    };
+
+                    info!("The following materials were added to Store's inventory: {}", inventory);
+
+                    store.inventory_mut().add_range(inventory.drain());
+                    info!("The store now has: {}", store.inventory());
+                }
+
+                WorkerActionResult::BroughtToShop(ref mut inventory) => {
+                    if inventory.is_empty() {
+                        continue;
+                    }
+                    info!(
+                        "The following materials were added to Gatherer <{}> inventory: {}",
+                        self.data.resource_type, inventory
+                    );
+                    self.output.add_range(inventory.drain());
+
+                    info!(
+                        "Gatherer <{}> has total items: {}",
+                        self.data.resource_type, self.output
+                    );
+                }
+
+                WorkerActionResult::Idle => {
+                    if let Worker::Idle(idle_worker) = worker {
+                        if self.output.is_full() || self.data.storing_all {
+                            //store items
+                            info!(
+                                "Gatherer <{}> is storing resources. Current inventory: {}",
+                                self.data.resource_type, self.output
+                            );
+
+                            let (closest_shop, path) = if let Some(x) = pathfinding_helpers::closest_shop(
+                                self.structure.pos,
+                                &world.map,
+                                &mut world.shops,
+                                |s| {
+                                    //TODO: just bring to the store. In the future - maybe consider
+                                    //bringing to the closest shop that needs materials?
+                                    if let ShopType::MainStore(_) = s { true } else { false }
+                                },
+                            ) {
+                                x
+                            } else {
+                                info!("Gatherer <{}> has no suitable stores nearby.", self.data.resource_type);
+                                continue; //remain idle
+                            };
+
+                            *worker = idle_worker.to_storing(&world.map, path, &mut self.output);
+
+                            //once started storing - store everything
+                            if self.output.total_items() <= 0.0 {
+                                self.data.storing_all = false;
+                            } else {
+                                self.data.storing_all = true;
+                            }
+
+                            continue;
+                        }
+
+                        //else gather
+
+                        let maybe_path = pathfinding::dijkstra_closest(&world.map, idle_worker.pos, |t| {
+                            if let TileType::Resource(r, _, being_cut) = t {
+                                if *r == self.data.resource_type && !being_cut {
+                                    true
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        });
+
+                        let path = if let Some(path) = maybe_path {
+                            path
+                        } else {
+                            info!(
+                                "Gatherer <{}> has no suitable resource nodes nearby.",
+                                self.data.resource_type
+                            );
+                            continue; //remain idle
+                        };
+
+                        *worker = idle_worker.to_gathering(path, &mut world.map);
+                    }
+                }
             }
         }
     }
-
-    pub const WIDTH: u8 = 2;
-    pub const HEIGHT: u8 = 2;
-}
-
-fn worker_continue_gathering_resources(
-    gather_resource_action: &mut GatherResourcesAction,
-    map: &mut WorldMap,
-    inventory: &mut Inventory,
-    delta: f32,
-) -> Option<GathererWorkerAction> {
-    let result = gather_resource_action.process(map, inventory, delta);
-
-    if let ActionResult::Completed = result {
-        return Some(GathererWorkerAction::Idle);
-    }
-    None
-}
-
-fn worker_continue_storing(
-    haul_data: &mut StoreAction,
-
-    shops: &mut LinkedList<Shop>,
-    delta: f32,
-) -> Option<GathererWorkerAction> {
-    //TODO: if no store - it means the store was destroyed! What do? For now - remain in the
-    //current action, but do not progress
-    //FIXME: how to ensure I find the same store that was ogirinally selected? Maybe check what
-    //building is at path's end? better - introduce Ids and store id. Not even. Actually I have
-    //updated pathfinding to go to the exact store location, so you can use that. Still, the
-    //problem above remains
-    let store = shops.iter_mut().find_map(|s| {
-        if let ShopType::MainStore(store) = &mut s.shop_type {
-            return Some(store);
-        }
-        return None;
-    })?; // if no store - remain idle
-
-    let result = haul_data.process(store, delta);
-
-    if let ActionResult::InProgress = result {
-        return None; //continue hauling - do not change state
-    }
-
-    Some(GathererWorkerAction::Idle)
-}
-
-fn worker_start_work(
-    inventory: &mut Inventory,
-    world: &mut World,
-    resource_type: &ResourceType,
-    start: Pos,
-) -> Option<GathererWorkerAction> {
-    if inventory.is_full() {
-        let position = world.shops.iter_mut().find_map(|s| {
-            if let ShopType::MainStore(_) = &mut s.shop_type {
-                return Some(s.structure.pos);
-            }
-            return None;
-        })?; // if no store - remain idle
-
-        //TODO: for now haul everything - in the future: only haul some part at a time
-
-        let haul_action = StoreAction::new(start, position, &world.map, inventory)?;
-
-        return Some(GathererWorkerAction::Store(haul_action));
-    }
-
-    //gather tree that is not being cut
-    let gather_action = GatherResourcesAction::new(start, &mut world.map, 10.0, |t| {
-        if let TileType::Resource(rt, _, being_cut) = t {
-            rt == resource_type && !being_cut
-        } else {
-            false
-        }
-    })?;
-
-    Some(GathererWorkerAction::GatherResource(gather_action))
 }

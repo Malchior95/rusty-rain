@@ -54,7 +54,9 @@ impl WorldMap {
         width: usize,
         height: usize,
     ) -> WorldMap {
-        let tiles = (0..height).map(|_| (0..width).map(|_| TileType::Empty).collect()).collect();
+        let tiles = (0..height)
+            .map(|_| (0..width).map(|_| TileType::Empty).collect())
+            .collect();
         WorldMap { map: tiles }
     }
 
@@ -203,8 +205,8 @@ impl TileType {
             TileType::Empty => 1.0,
             TileType::Resource(_, _, _) => 2.0,
             TileType::Road => 0.7,
-            TileType::Structure(_) => 10.0,
-            //TileType::Tree(_, _) => 10.0,
+            TileType::Structure(_) => 1.0, //this is the cost of entering the building...
+                                           //TileType::Tree(_, _) => 10.0,
         }
     }
 
@@ -219,5 +221,23 @@ impl TileType {
             TileType::Structure(_) => false,
             //TileType::Tree(_, _) => false,
         }
+    }
+
+    pub fn is_store(&self) -> bool {
+        if let TileType::Structure(structure) = self {
+            if let ShopTypeDiscriminants::MainStore = structure {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn is_hearth(&self) -> bool {
+        if let TileType::Structure(structure) = self {
+            if let ShopTypeDiscriminants::MainHearth = structure {
+                return true;
+            }
+        }
+        false
     }
 }

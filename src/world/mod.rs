@@ -1,12 +1,17 @@
 use crate::{FRAME_NUM, math::Pos};
 use std::{array::from_fn, collections::LinkedList, sync::atomic::Ordering};
 
-use inventory::InventoryItem;
+use actions::BasicAction;
+use inventory::{Inventory, InventoryItem};
 use structures::{
     Shop, ShopType,
-    shop::{gatherer::Gatherer, hearth::Hearth, store::Store},
+    shop::{
+        gatherer,
+        hearth::{self, Hearth},
+        store::{self, Store},
+    },
 };
-use workers::Worker;
+use workers::{Idle, Worker, WorkerWithAction};
 use world_map::{TileType, WorldMap, resources::ResourceType};
 
 pub mod actions;
@@ -17,7 +22,7 @@ pub mod world_map;
 
 pub struct World {
     pub map: WorldMap,
-    pub shops: LinkedList<Shop>,
+    pub shops: LinkedList<ShopType>,
     pub unassigned_workers: LinkedList<Worker>,
 }
 
@@ -30,11 +35,15 @@ impl World {
         let mut map = WorldMap::new_test(width, height);
 
         //this is cleaver! Note that 5 in type annotations is an array size!
-        let unassigned_workers = LinkedList::from(from_fn::<Worker, 5, _>(|_| Worker::default()));
+        //let unassigned_workers = LinkedList::from(from_fn::<Worker, 5, _>(|_| Worker::default()));
 
         //draw road
-        (3..7).map(|y| Pos::new(3, y)).for_each(|p| map.map[p.y][p.x] = TileType::Road);
-        (3..8).map(|x| Pos::new(x, 6)).for_each(|p| map.map[p.y][p.x] = TileType::Road);
+        (3..7)
+            .map(|y| Pos::new(3, y))
+            .for_each(|p| map.map[p.y][p.x] = TileType::Road);
+        (3..8)
+            .map(|x| Pos::new(x, 6))
+            .for_each(|p| map.map[p.y][p.x] = TileType::Road);
 
         *map.get_mut(&Pos::new(3, 12)) = ResourceType::tile_berry();
 
@@ -43,50 +52,38 @@ impl World {
         let mut world = World {
             map,
             shops: LinkedList::new(),
-            unassigned_workers,
+            unassigned_workers: LinkedList::new(),
         };
 
-        let built = Hearth::build(&mut world, Pos::new(width / 2, height / 2));
+        let maybe_hearth = hearth::build_hearth(&mut world, Pos::new(width / 2, height / 2));
+        if let Some(hearth) = maybe_hearth {
+            hearth.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
+                name: "Hearth tender".to_string(),
+                inventory: Inventory::limited(5.0),
+                pos: hearth.structure.pos,
+                break_progress: BasicAction::new(120.0),
+                action_data: Idle(),
+            }));
 
-        if built {
-            if let ShopType::MainHearth(hearth) = &mut world.shops.back_mut().unwrap().shop_type {
-                let worker = world.unassigned_workers.pop_back().unwrap();
+            hearth.data.inventory.add(InventoryItem::Wood, 100.0);
+        };
 
-                hearth.assign_worker(worker);
-            }
+        let maybe_store = store::build_store(&mut world, Pos::new(4, 3));
+        if let Some(store) = maybe_store {
+            store.output.add(InventoryItem::Wood, 100.0);
         }
 
-        let built = Gatherer::build(&mut world, Pos::new(11, 4), ResourceType::Tree);
+        let maybe_woodcutter = gatherer::build_gatherer(&mut world, Pos::new(11, 5), ResourceType::Tree);
 
-        if built {
-            if let ShopType::Gatherer(woodcutter) = &mut world.shops.back_mut().unwrap().shop_type {
-                let worker = world.unassigned_workers.pop_back().unwrap();
-                woodcutter.assign_worker(worker);
-
-                let worker = world.unassigned_workers.pop_back().unwrap();
-                woodcutter.assign_worker(worker);
-
-                let worker = world.unassigned_workers.pop_back().unwrap();
-                woodcutter.assign_worker(worker);
-            }
-        }
-
-        let built = Store::build(&mut world, Pos::new(4, 3));
-
-        if built {
-            if let ShopType::MainStore(store) = &mut world.shops.back_mut().unwrap().shop_type {
-                store.inventory.add(InventoryItem::Wood, 50.0);
-            }
-        }
-
-        let built = Gatherer::build(&mut world, Pos::new(8, 3), ResourceType::Berries);
-
-        if built {
-            if let ShopType::Gatherer(herbalist) = &mut world.shops.back_mut().unwrap().shop_type {
-                let worker = world.unassigned_workers.pop_back().unwrap();
-                herbalist.assign_worker(worker);
-            }
-        }
+        if let Some(woodcutter) = maybe_woodcutter {
+            woodcutter.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
+                name: "Woodchuck Chuck".to_string(),
+                inventory: Inventory::limited(5.0),
+                pos: woodcutter.structure.pos,
+                break_progress: BasicAction::new(120.0),
+                action_data: Idle(),
+            }));
+        };
 
         world
     }

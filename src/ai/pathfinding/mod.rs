@@ -1,6 +1,7 @@
 use std::collections::{BinaryHeap, HashMap};
 
 pub mod debug_path_drawer;
+pub mod pathfinding_helpers;
 
 use debug_path_drawer::PathDrawer;
 use log::info;
@@ -19,6 +20,10 @@ pub fn dijkstra_closest<F>(
 where
     F: Fn(&TileType) -> bool,
 {
+    if tile_type_check(map.get(&start)) {
+        return Some(Vec::from_iter([start]));
+    }
+
     let start_cost = WithPriority::default(start);
 
     let mut frontier: BinaryHeap<WithPriority<Pos>> = BinaryHeap::new();
@@ -69,6 +74,10 @@ pub fn a_star(
     start: Pos,
     end: Pos,
 ) -> Option<Vec<Pos>> {
+    if start == end {
+        return Some(Vec::from_iter([start]));
+    }
+
     let start_cost = WithPriority::default(start);
 
     let mut frontier: BinaryHeap<WithPriority<Pos>> = BinaryHeap::new();
@@ -150,13 +159,32 @@ fn get_neighbours(
     map: &WorldMap,
     pos: &Pos,
 ) -> Vec<Pos> {
-    let bottom = if pos.y > 0 { Some(Pos::new(pos.x, pos.y - 1)) } else { None };
-    let top = if pos.y < map.height() - 1 { Some(Pos::new(pos.x, pos.y + 1)) } else { None };
-    let left = if pos.x > 0 { Some(Pos::new(pos.x - 1, pos.y)) } else { None };
-    let right = if pos.x < map.width() - 1 { Some(Pos::new(pos.x + 1, pos.y)) } else { None };
+    let bottom = if pos.y > 0 {
+        Some(Pos::new(pos.x, pos.y - 1))
+    } else {
+        None
+    };
+    let top = if pos.y < map.height() - 1 {
+        Some(Pos::new(pos.x, pos.y + 1))
+    } else {
+        None
+    };
+    let left = if pos.x > 0 {
+        Some(Pos::new(pos.x - 1, pos.y))
+    } else {
+        None
+    };
+    let right = if pos.x < map.width() - 1 {
+        Some(Pos::new(pos.x + 1, pos.y))
+    } else {
+        None
+    };
 
     let ret = [bottom, left, top, right];
-    let valid = ret.iter().filter_map(|p| p.as_ref()).filter(|&x| (map.get(x).is_traversible()));
+    let valid = ret
+        .iter()
+        .filter_map(|p| p.as_ref())
+        .filter(|&x| (map.get(x).is_traversible()));
 
     valid.cloned().collect()
 }
@@ -169,13 +197,33 @@ fn get_nearby<F>(
 where
     F: Fn(&TileType) -> bool,
 {
-    let bottom = if pos.y > 0 { Some(Pos::new(pos.x, pos.y - 1)) } else { None };
-    let top = if pos.y < map.height() - 1 { Some(Pos::new(pos.x, pos.y + 1)) } else { None };
-    let left = if pos.x > 0 { Some(Pos::new(pos.x - 1, pos.y)) } else { None };
-    let right = if pos.x < map.width() - 1 { Some(Pos::new(pos.x + 1, pos.y)) } else { None };
+    let bottom = if pos.y > 0 {
+        Some(Pos::new(pos.x, pos.y - 1))
+    } else {
+        None
+    };
+    let top = if pos.y < map.height() - 1 {
+        Some(Pos::new(pos.x, pos.y + 1))
+    } else {
+        None
+    };
+    let left = if pos.x > 0 {
+        Some(Pos::new(pos.x - 1, pos.y))
+    } else {
+        None
+    };
+    let right = if pos.x < map.width() - 1 {
+        Some(Pos::new(pos.x + 1, pos.y))
+    } else {
+        None
+    };
 
     let ret = [bottom, left, top, right];
-    ret.iter().filter_map(|p| p.as_ref()).filter(|t| tile_type_check(map.get(*t))).nth(0).copied()
+    ret.iter()
+        .filter_map(|p| p.as_ref())
+        .filter(|t| tile_type_check(map.get(*t)))
+        .nth(0)
+        .copied()
 }
 fn is_nearby(
     map: &WorldMap,
@@ -184,11 +232,30 @@ fn is_nearby(
 ) -> bool
 where
 {
-    let bottom = if pos.y > 0 { Some(Pos::new(pos.x, pos.y - 1)) } else { None };
-    let top = if pos.y < map.height() - 1 { Some(Pos::new(pos.x, pos.y + 1)) } else { None };
-    let left = if pos.x > 0 { Some(Pos::new(pos.x - 1, pos.y)) } else { None };
-    let right = if pos.x < map.width() - 1 { Some(Pos::new(pos.x + 1, pos.y)) } else { None };
+    let bottom = if pos.y > 0 {
+        Some(Pos::new(pos.x, pos.y - 1))
+    } else {
+        None
+    };
+    let top = if pos.y < map.height() - 1 {
+        Some(Pos::new(pos.x, pos.y + 1))
+    } else {
+        None
+    };
+    let left = if pos.x > 0 {
+        Some(Pos::new(pos.x - 1, pos.y))
+    } else {
+        None
+    };
+    let right = if pos.x < map.width() - 1 {
+        Some(Pos::new(pos.x + 1, pos.y))
+    } else {
+        None
+    };
 
     let ret = [bottom, left, top, right];
-    ret.iter().filter_map(|p| p.as_ref()).filter(|&p| p == target).any(|_| true)
+    ret.iter()
+        .filter_map(|p| p.as_ref())
+        .filter(|&p| p == target)
+        .any(|_| true)
 }

@@ -24,7 +24,7 @@ fn main() {
 
     let mut seconds = 0.0;
     const DELTA: f32 = 1.0 / 30.0;
-    while seconds < 10.0 * 60.0 {
+    while seconds < 6.0 * 60.0 {
         world.next_tick(DELTA);
         seconds += DELTA;
     }

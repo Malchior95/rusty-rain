@@ -8,50 +8,48 @@ use crate::{
     },
 };
 
-pub struct Store {
-    pub inventory: Inventory,
+pub struct Store {}
+
+pub fn build_store(
+    world: &mut World,
+    pos: Pos,
+) -> Option<&mut Shop<Store>> {
+    if !world.map.can_build(pos.x, pos.y, Store::WIDTH, Store::HEIGHT) {
+        return None;
+    }
+
+    let store = Store {};
+
+    let structure = Structure {
+        pos,
+        height: Store::HEIGHT,
+        width: Store::WIDTH,
+    };
+
+    let shop = Shop {
+        structure,
+        workers: Vec::with_capacity(Store::MAX_WORKERS as usize),
+        max_workers: Store::MAX_WORKERS,
+        output: Inventory::new(),
+        data: store,
+    };
+
+    world.shops.push_back(ShopType::MainStore(shop));
+
+    world.map.build(pos.x, pos.y, Store::WIDTH, Store::HEIGHT, || {
+        TileType::Structure(ShopTypeDiscriminants::MainStore)
+    });
+
+    if let ShopType::MainStore(store) = world.shops.back_mut().unwrap() {
+        return Some(store);
+    }
+    panic!();
 }
 
 impl Store {
-    pub fn build(
-        world: &mut World,
-        pos: Pos,
-    ) -> bool {
-        if !world.map.can_build(pos.x, pos.y, Self::WIDTH, Self::HEIGHT) {
-            return false;
-        }
-
-        let store = Self { inventory: Inventory::new() };
-
-        let structure = Structure {
-            pos,
-            height: Self::HEIGHT,
-            width: Self::WIDTH,
-        };
-
-        let shop = Shop {
-            structure,
-            shop_type: ShopType::MainStore(store),
-        };
-
-        world.shops.push_back(shop);
-
-        world.map.build(pos.x, pos.y, Self::WIDTH, Self::HEIGHT, || {
-            TileType::Structure(ShopTypeDiscriminants::MainStore)
-        });
-        return true;
-    }
-
-    //pub fn process(
-    //    &mut self,
-    //    structure: &Structure,
-    //    map: &mut WorldMap,
-    //    shops: &LinkedList<Shop>,
-    //    delta: f32,
-    //) {
-    //    //TODO: store does not need processing for now
-    //}
-
     pub const WIDTH: u8 = 4;
     pub const HEIGHT: u8 = 3;
+
+    //TODO: for now no workers - maybe in the future have dedicated workers to hauling
+    pub const MAX_WORKERS: u8 = 0;
 }
