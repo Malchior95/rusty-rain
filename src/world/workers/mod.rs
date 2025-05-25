@@ -1,7 +1,7 @@
 use log::info;
 
 use crate::{
-    ai::pathfinding,
+    ai::pathfinding::{self, pathfinding_helpers},
     math::Pos,
     world::actions::{
         TransitActionResult, gathering_action::GatheringActionResult, taking_break_action::TakingBreakActionResult,
@@ -9,6 +9,7 @@ use crate::{
 };
 
 use super::{
+    World,
     actions::{
         ActionResult, BasicAction, TransitAction, gathering_action::GatheringAction,
         taking_break_action::TakingBreakAction,
@@ -44,6 +45,7 @@ pub struct LostWorker {
 }
 
 pub trait CanReturn {}
+pub trait CanIdle {}
 pub struct Idle();
 pub struct InHearth();
 pub struct SupplyingAction(TransitAction);
@@ -55,6 +57,10 @@ impl CanReturn for SupplyingAction {}
 impl CanReturn for StoringAction {}
 impl CanReturn for GatheringAction {}
 impl CanReturn for TakingBreakAction {}
+
+impl CanIdle for ReturningAction {}
+impl CanIdle for ProducingAction {}
+impl CanIdle for Idle {} //If was trying to transition to a state, but path not found
 
 pub enum Worker {
     //assigned actions
@@ -81,6 +87,7 @@ pub enum Worker {
 
     //lost
     Lost(LostWorker),
+    //occures when worker was out in the field, but was unable to find his way back to the store
 }
 
 pub enum WorkerActionResult {
@@ -138,7 +145,7 @@ impl Worker {
         &mut self,
         delta: f32,
         assigned_store_location: Pos,
-        map: &mut WorldMap,
+        world: &mut World,
     ) -> WorkerActionResult {
         if let Self::Returning(worker) = self {
             worker.progress_break_requirement(delta);
@@ -184,7 +191,7 @@ impl Worker {
                         worker.name, pos
                     );
 
-                    *self = worker.to_returning(map, assigned_store_location);
+                    *self = worker.to_returning(&mut world.map, assigned_store_location);
                     return WorkerActionResult::BroughtToStore(items, pos);
                 }
             }
@@ -209,7 +216,7 @@ impl Worker {
                     );
                     info!("Reserved items: {}", worker.inventory);
 
-                    *self = worker.to_returning(map, assigned_store_location);
+                    *self = worker.to_returning(&mut world.map, assigned_store_location);
 
                     return WorkerActionResult::InProgress;
                 }
@@ -220,7 +227,7 @@ impl Worker {
 
         if let Self::Gathering(worker) = self {
             worker.progress_break_requirement(delta);
-            let result = worker.action_data.continue_action(map, delta);
+            let result = worker.action_data.continue_action(&mut world.map, delta);
 
             match result {
                 GatheringActionResult::InProgress(pos) => {
@@ -235,7 +242,7 @@ impl Worker {
                     );
                     info!("Gathered items: {}", worker.inventory);
 
-                    *self = worker.to_returning(map, assigned_store_location);
+                    *self = worker.to_returning(&mut world.map, assigned_store_location);
 
                     return WorkerActionResult::InProgress;
                 }
@@ -274,7 +281,7 @@ impl Worker {
                         worker.name, worker.pos
                     );
                     worker.break_progress = BasicAction::new(120.0);
-                    *self = worker.to_returning(map, assigned_store_location);
+                    *self = worker.to_returning(&mut world.map, assigned_store_location);
 
                     return WorkerActionResult::InProgress;
                 }
@@ -286,7 +293,7 @@ impl Worker {
             worker.progress_break_requirement(delta);
 
             if worker.requires_break() {
-                *self = worker.to_taking_break(map);
+                *self = worker.to_taking_break(world);
                 return WorkerActionResult::InProgress;
             }
 
@@ -302,13 +309,10 @@ impl Worker {
     }
 }
 
-impl WorkerWithAction<ReturningAction> {
-    fn to_idle(&self) -> Worker {
-        Worker::Idle(WorkerWithAction::clone_with(self, Idle {}))
-    }
-}
-
-impl WorkerWithAction<ProducingAction> {
+impl<T> WorkerWithAction<T>
+where
+    T: CanIdle,
+{
     fn to_idle(&self) -> Worker {
         Worker::Idle(WorkerWithAction::clone_with(self, Idle {}))
     }
@@ -317,16 +321,28 @@ impl WorkerWithAction<ProducingAction> {
 impl WorkerWithAction<Idle> {
     fn to_taking_break(
         &mut self,
-        map: &WorldMap,
+        world: &World,
     ) -> Worker {
         info!("{} is starting a break, current pos {}.", self.name, self.pos);
-        let path = if let Some(path) = pathfinding::dijkstra_closest(map, self.pos, |t| t.is_hearth()) {
+        let (_, path) = if let Some(path) = pathfinding_helpers::closest_shop(self.pos, world, |s| s.is_main_hearth()) {
             path
         } else {
-            return Worker::Lost(LostWorker {
-                name: self.name.clone(),
-                pos: self.pos,
-            });
+            //TODO: if Hearth not accessible - do not became lost
+            //In the future: lower the mood or become starving
+
+            self.break_progress.progress = 0.0;
+
+            info!(
+                "{} was unable to find the Hearth and is now starving/exhausted!",
+                self.name
+            );
+
+            return self.to_idle();
+
+            //return Worker::Lost(LostWorker {
+            //    name: self.name.clone(),
+            //    pos: self.pos,
+            //});
         };
 
         Worker::TakingBreak(WorkerWithAction {
@@ -334,7 +350,7 @@ impl WorkerWithAction<Idle> {
             inventory: self.inventory.clone(),
             pos: self.pos,
             break_progress: self.break_progress.clone(),
-            action_data: TakingBreakAction::new(path, map),
+            action_data: TakingBreakAction::new(path, &world.map),
         })
     }
 
@@ -346,7 +362,6 @@ impl WorkerWithAction<Idle> {
     ) -> Worker {
         info!("{} is storing materials, current pos {}.", self.name, self.pos);
 
-        info!("{} is storing the following materials {}", self.name, self.inventory);
         shop_inventory.transfer_until_full(&mut self.inventory);
 
         info!("{} now has the follwoing materials {}", self.name, self.inventory);

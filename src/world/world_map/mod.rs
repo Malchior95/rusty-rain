@@ -60,24 +60,6 @@ impl WorldMap {
         WorldMap { map: tiles }
     }
 
-    pub fn new_test(
-        width: usize,
-        height: usize,
-    ) -> WorldMap {
-        let mut world = WorldMap::new(width, height);
-
-        //create boundary of trees
-        for y in 0..height {
-            for x in 0..width {
-                if [0, 1, height - 2, height - 1].contains(&y) || [0, 1, width - 2, width - 1].contains(&x) {
-                    world.map[y][x] = ResourceType::tile_tree();
-                }
-            }
-        }
-
-        world
-    }
-
     /// sets the rectangular region as containing a structure. You MUST call can_build first, or
     /// you are risking a panic or invalid game state
     pub fn build<F>(

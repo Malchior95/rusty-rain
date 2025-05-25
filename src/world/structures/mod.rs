@@ -1,7 +1,7 @@
 pub mod builders;
 pub mod shop;
 use shop::{gatherer::Gatherer, hearth::Hearth, producer::Producer, store::Store};
-use strum_macros::{Display, EnumDiscriminants};
+use strum_macros::{Display, EnumDiscriminants, EnumIs};
 
 use crate::math::Pos;
 
@@ -24,7 +24,7 @@ pub struct Structure {
     pub width: u8,
 }
 
-#[derive(EnumDiscriminants)]
+#[derive(EnumDiscriminants, EnumIs)]
 #[strum_discriminants(derive(Display))]
 pub enum ShopType {
     MainHearth(Shop<Hearth>),

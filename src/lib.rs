@@ -4,5 +4,6 @@ pub mod ai;
 pub mod data_helpers;
 pub mod math;
 pub mod world;
+pub mod world_interaction;
 
 pub static FRAME_NUM: AtomicUsize = AtomicUsize::new(0);

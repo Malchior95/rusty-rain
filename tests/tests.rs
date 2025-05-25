@@ -1,95 +1,111 @@
-//use std::array::from_fn;
-//use std::collections::LinkedList;
-//use std::io::Write;
-//
-//use std::{sync::atomic::Ordering, time::Instant};
-//
-//use log::info;
-//use rusty_rain::math::Pos;
-//use rusty_rain::world::inventory::InventoryItem;
-//use rusty_rain::world::structures::ShopType;
-//use rusty_rain::world::structures::shop::hearth::Hearth;
-//use rusty_rain::world::structures::shop::store::Store;
-//use rusty_rain::world::structures::shop::woodcutter::Woodcutter;
-//use rusty_rain::world::workers::Worker;
-//use rusty_rain::world::world_map::{TileType, WorldMap};
-//use rusty_rain::{FRAME_NUM, world::World};
-//
-//#[cfg(test)]
-//#[test]
-//fn test_world() {
-//    env_logger::builder()
-//        .format(|buf, record| {
-//            writeln!(buf, "@{}\t{}", FRAME_NUM.load(Ordering::Relaxed), record.args())?;
-//            Ok(())
-//        })
-//        .init();
-//
-//    info!("Initializing test world");
-//    let mut world = new_test(16, 16);
-//    info!("\n{}", world.map);
-//
-//    //run simulation for 120.0s
-//
-//    let timer = Instant::now();
-//
-//    let mut seconds = 0.0;
-//    const DELTA: f32 = 1.0 / 30.0;
-//    while seconds < 120.0 {
-//        world.next_tick(DELTA);
-//        seconds += DELTA;
-//    }
-//
-//    info!("Simulation took: {} ms", timer.elapsed().as_micros() as f32 / 1e3);
-//    println!("Simulation took: {} ms", timer.elapsed().as_micros() as f32 / 1e3);
-//}
-//
-//pub fn new_test(
-//    width: usize,
-//    height: usize,
-//) -> World {
-//    let mut map = WorldMap::new_test(width, height);
-//
-//    //this is cleaver! Note that 5 in type annotations is an array size!
-//    let unassigned_workers = LinkedList::from(from_fn::<Worker, 5, _>(|_| Worker::default()));
-//
-//    //draw road
-//    (3..7).map(|y| Pos::new(3, y)).for_each(|p| map.map[p.y][p.x] = TileType::Road);
-//    (3..8).map(|x| Pos::new(x, 6)).for_each(|p| map.map[p.y][p.x] = TileType::Road);
-//
-//    let mut world = World {
-//        map,
-//        shops: LinkedList::new(),
-//        unassigned_workers,
-//    };
-//
-//    let built = Hearth::build(&mut world, Pos::new(width / 2, height / 2));
-//
-//    if built {
-//        if let ShopType::MainHearth(hearth) = &mut world.shops.back_mut().unwrap().shop_type {
-//            let worker = world.unassigned_workers.pop_back().unwrap();
-//
-//            hearth.assign_worker(worker);
-//        }
-//    }
-//
-//    let built = Woodcutter::build(&mut world, Pos::new(11, 4));
-//
-//    if built {
-//        if let ShopType::Woodcutter(woodcutter) = &mut world.shops.back_mut().unwrap().shop_type {
-//            let worker = world.unassigned_workers.pop_back().unwrap();
-//            woodcutter.assign_worker(worker);
-//            woodcutter.inventory.output.add(InventoryItem::Wood, 10.0);
-//        }
-//    }
-//
-//    let built = Store::build(&mut world, Pos::new(4, 3));
-//
-//    if built {
-//        if let ShopType::MainStore(store) = &mut world.shops.back_mut().unwrap().shop_type {
-//            store.inventory.add(InventoryItem::Wood, 30.0);
-//        }
-//    }
-//
-//    world
-//}
+use std::io::Write;
+
+use log::info;
+use rusty_rain::world::world_map::resources::ResourceType;
+use std::sync::atomic::Ordering;
+
+use rusty_rain::FRAME_NUM;
+mod helpers;
+
+#[cfg(test)]
+#[test]
+fn test_hearth() {
+    let mut world = helpers::new_test_world(16, 16);
+
+    let _ = env_logger::builder()
+        .format(|buf, record| {
+            let tick_num = FRAME_NUM.load(Ordering::Relaxed);
+            writeln!(buf, "@{}\t{}", tick_num, record.args())?;
+            Ok(())
+        })
+        .try_init();
+
+    helpers::configure_world_for_hearth_testing(&mut world);
+
+    let mut seconds = 0.0;
+    const DELTA: f32 = 1.0 / 30.0;
+    while seconds < 3.5 * 60.0 {
+        world.next_tick(DELTA);
+        seconds += DELTA;
+    }
+
+    let ws = world.get_gatherers(&ResourceType::Tree);
+    let woodcutter = ws.first().unwrap();
+
+    let worker = woodcutter.workers.first().unwrap();
+    let b = worker.break_progress().unwrap();
+
+    let hs = world.get_hearths();
+    let hearth = hs.first().unwrap();
+
+    info!("Break progress at: {}", b.progress);
+
+    //by the end of this test, woodcutter should have take a break, and a number of fuel should
+    //have been burned in the hearth
+    assert!(b.progress < b.requirement);
+    assert!(hearth.data.inventory.total_items() < 15.0);
+}
+
+#[cfg(test)]
+#[test]
+fn test_gathering() {
+    let mut world = helpers::new_test_world(16, 16);
+
+    let _ = env_logger::builder()
+        .format(|buf, record| {
+            let tick_num = FRAME_NUM.load(Ordering::Relaxed);
+            writeln!(buf, "@{}\t{}", tick_num, record.args())?;
+            Ok(())
+        })
+        .try_init();
+
+    helpers::configure_world_for_gathering_testing(&mut world);
+
+    let mut seconds = 0.0;
+    const DELTA: f32 = 1.0 / 30.0;
+    while seconds < 4.0 * 60.0 {
+        world.next_tick(DELTA);
+        seconds += DELTA;
+    }
+
+    let stores = world.get_stores();
+    let store = stores.first().unwrap();
+
+    //by the end of this test, some wood should be gathered and transfered to the store.
+
+    assert!(store.output.total_items() > 0.0);
+}
+
+#[cfg(test)]
+#[test]
+fn test_production() {
+    use rusty_rain::world::inventory::InventoryItem;
+
+    let mut world = helpers::new_test_world(16, 16);
+
+    let _ = env_logger::builder()
+        .format(|buf, record| {
+            let tick_num = FRAME_NUM.load(Ordering::Relaxed);
+            writeln!(buf, "@{}\t{}", tick_num, record.args())?;
+            Ok(())
+        })
+        .try_init();
+
+    helpers::configure_world_for_production_testing(&mut world);
+
+    let mut seconds = 0.0;
+    const DELTA: f32 = 1.0 / 30.0;
+    while seconds < 5.0 * 60.0 {
+        world.next_tick(DELTA);
+        seconds += DELTA;
+    }
+
+    let stores = world.get_stores();
+    let store = stores.first().unwrap();
+
+    //by the end of this test, some wood should be taken from the store, some planks produced and
+    //brought to the store
+
+    assert!(store.output.get(&InventoryItem::Plank) > 0.0);
+    assert!(store.output.get(&InventoryItem::Wood) < 40.0);
+}

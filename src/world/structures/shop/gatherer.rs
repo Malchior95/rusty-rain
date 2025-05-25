@@ -22,7 +22,7 @@ impl Shop<Gatherer> {
     ) {
         let shop_id = &format!("Gatherer<{}>", self.data.resource_type);
         for worker in &mut self.workers {
-            let mut result = worker.continue_action(delta, self.structure.pos, &mut world.map);
+            let mut result = worker.continue_action(delta, self.structure.pos, world);
 
             match &mut result {
                 WorkerActionResult::InProgress => {

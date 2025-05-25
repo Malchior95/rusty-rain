@@ -85,10 +85,9 @@ pub fn supply_command(
     shop_id: &String,
 ) {
     if let Worker::Idle(idle_worker) = worker {
-        let (closest_shop, path) = if let Some(x) =
-            pathfinding_helpers::closest_shop(shop_pos, &world.map, &mut world.shops, |s| {
-                s.inventory().get(&InventoryItem::Wood) >= min_materials_to_consider_supplying
-            }) {
+        let (closest_shop, path) = if let Some(x) = pathfinding_helpers::closest_shop_mut(shop_pos, world, |s| {
+            s.inventory().get(&InventoryItem::Wood) >= min_materials_to_consider_supplying
+        }) {
             x
         } else {
             info!("{} has no suitable stores with wood nearby.", shop_id);
@@ -126,12 +125,11 @@ pub fn store_command(
         //store items
         info!("{} is storing resources. Current inventory: {}", shop_id, shop_output);
 
-        let (_, path) = if let Some(x) =
-            pathfinding_helpers::closest_shop(shop_pos, &world.map, &mut world.shops, |s| {
-                //TODO: just bring to the store. In the future - maybe consider
-                //bringing to the closest shop that needs materials?
-                if let ShopType::MainStore(_) = s { true } else { false }
-            }) {
+        let (_, path) = if let Some(x) = pathfinding_helpers::closest_shop_mut(shop_pos, world, |s| {
+            //TODO: just bring to the store. In the future - maybe consider
+            //bringing to the closest shop that needs materials?
+            if let ShopType::MainStore(_) = s { true } else { false }
+        }) {
             x
         } else {
             info!("{} has no suitable stores nearby.", shop_id);

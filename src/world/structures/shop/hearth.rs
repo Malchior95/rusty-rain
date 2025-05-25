@@ -60,7 +60,7 @@ impl Shop<Hearth> {
     ) {
         let shop_id = &"Hearth".to_string();
         for worker in &mut self.workers {
-            let mut result = worker.continue_action(delta, self.structure.pos, &mut world.map);
+            let mut result = worker.continue_action(delta, self.structure.pos, world);
 
             match &mut result {
                 WorkerActionResult::InProgress => {

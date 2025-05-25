@@ -1,8 +1,6 @@
-use std::io::Write;
-use std::{collections::LinkedList, sync::atomic::Ordering};
+use std::collections::LinkedList;
 
 use rusty_rain::{
-    FRAME_NUM,
     math::Pos,
     world::{
         World,
@@ -13,27 +11,6 @@ use rusty_rain::{
         world_map::{TileType, WorldMap, resources::ResourceType},
     },
 };
-
-fn main() {
-    env_logger::builder()
-        .format(|buf, record| {
-            let tick_num = FRAME_NUM.load(Ordering::Relaxed);
-            writeln!(buf, "@{}\t{}", tick_num, record.args())?;
-            Ok(())
-        })
-        .init();
-
-    let mut world = new_test_world(16, 16);
-
-    configure_world(&mut world);
-
-    let mut seconds = 0.0;
-    const DELTA: f32 = 1.0 / 30.0;
-    while seconds < 60.0 {
-        world.next_tick(DELTA);
-        seconds += DELTA;
-    }
-}
 
 pub fn new_test_map(
     width: usize,
@@ -81,21 +58,29 @@ pub fn new_test_world(
     }
 }
 
-pub fn configure_world(world: &mut World) {
-    let maybe_hearth = builders::build_hearth(world, Pos::new(world.map.width() / 2, world.map.height() / 2));
-    if let Some(hearth) = maybe_hearth {
-        hearth.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
-            name: "Hearth tender".to_string(),
+pub fn configure_world_for_production_testing(world: &mut World) {
+    let maybe_store = builders::build_mainstore(world, Pos::new(4, 3));
+    if let Some(store) = maybe_store {
+        store.output.add(InventoryItem::Wood, 40.0);
+    }
+
+    let maybe_lumbermill = builders::build_lumbermill(world, Pos::new(5, 9));
+
+    if let Some(lumbermill) = maybe_lumbermill {
+        lumbermill.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
+            name: "Jane".to_string(),
             inventory: Inventory::limited(5.0),
-            pos: hearth.structure.pos,
+            pos: lumbermill.structure.pos,
             break_progress: BasicAction::new(120.0),
             action_data: Idle(),
         }));
     };
+}
 
+pub fn configure_world_for_gathering_testing(world: &mut World) {
     let maybe_store = builders::build_mainstore(world, Pos::new(4, 3));
     if let Some(store) = maybe_store {
-        store.output.add(InventoryItem::Wood, 40.0);
+        store.output.add(InventoryItem::Wood, 0.0);
     }
 
     let maybe_woodcutter = builders::build_woodcutter(world, Pos::new(11, 5));
@@ -109,14 +94,32 @@ pub fn configure_world(world: &mut World) {
             action_data: Idle(),
         }));
     };
+}
 
-    let maybe_lumbermill = builders::build_lumbermill(world, Pos::new(5, 9));
-
-    if let Some(lumbermill) = maybe_lumbermill {
-        lumbermill.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
-            name: "Jane".to_string(),
+pub fn configure_world_for_hearth_testing(world: &mut World) {
+    let maybe_hearth = builders::build_hearth(world, Pos::new(world.map.width() / 2, world.map.height() / 2));
+    if let Some(hearth) = maybe_hearth {
+        hearth.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
+            name: "Hearth tender".to_string(),
             inventory: Inventory::limited(5.0),
-            pos: lumbermill.structure.pos,
+            pos: hearth.structure.pos,
+            break_progress: BasicAction::new(120.0),
+            action_data: Idle(),
+        }));
+    };
+
+    let maybe_store = builders::build_mainstore(world, Pos::new(4, 3));
+    if let Some(store) = maybe_store {
+        store.output.add(InventoryItem::Wood, 5.0);
+    }
+
+    let maybe_woodcutter = builders::build_woodcutter(world, Pos::new(11, 5));
+
+    if let Some(woodcutter) = maybe_woodcutter {
+        woodcutter.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
+            name: "Woodchuck Chuck".to_string(),
+            inventory: Inventory::limited(5.0),
+            pos: woodcutter.structure.pos,
             break_progress: BasicAction::new(120.0),
             action_data: Idle(),
         }));
