@@ -132,10 +132,6 @@ impl Inventory {
         self.inv.drain()
     }
 
-    pub fn extract(&mut self) -> Inventory {
-        Inventory::from_iter(self.drain())
-    }
-
     pub fn transfer_until_full(
         &mut self,
         target: &mut Inventory,
@@ -155,17 +151,5 @@ impl Inventory {
                 target.add(key, to_transfer);
             }
         }
-    }
-
-    pub fn has_at_least(
-        &self,
-        other: &Inventory,
-    ) -> bool {
-        for (key, item) in other.iter() {
-            if self.get(&key) < *item {
-                return false;
-            }
-        }
-        true
     }
 }

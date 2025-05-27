@@ -60,6 +60,7 @@ impl CanReturn for SupplyingAction {}
 impl CanReturn for StoringAction {}
 impl CanReturn for GatheringAction {}
 impl CanReturn for TakingBreakAction {}
+impl CanReturn for Idle {}
 
 impl CanIdle for ReturningAction {}
 impl CanIdle for ProducingAction {}
@@ -167,7 +168,7 @@ impl Worker {
                     worker.pos = pos;
                 }
                 TransitActionResult::Completed(pos) => {
-                    let items = worker.inventory.extract();
+                    let items = Inventory::from_iter(worker.inventory.drain());
                     worker.pos = pos;
 
                     info!("{} has returned to the shop at {}, and is now idle.", worker.name, pos);
@@ -194,7 +195,7 @@ impl Worker {
                     worker.pos = pos;
                 }
                 TransitActionResult::Completed(pos) => {
-                    let items = worker.inventory.extract();
+                    let items = Inventory::from_iter(worker.inventory.drain());
                     worker.pos = pos;
 
                     info!(
@@ -349,11 +350,6 @@ impl WorkerWithAction<Idle> {
             );
 
             return self.to_idle();
-
-            //return Worker::Lost(LostWorker {
-            //    name: self.name.clone(),
-            //    pos: self.pos,
-            //});
         };
 
         Worker::TakingBreak(WorkerWithAction {
