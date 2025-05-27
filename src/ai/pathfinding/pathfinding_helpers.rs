@@ -17,7 +17,7 @@ where
         .iter_mut()
         .filter_map(|s| {
             if f(s) {
-                let path = pathfinding::a_star(&world.map, start, s.location());
+                let path = pathfinding::a_star(&world.map, start, s.get_non_generic().structure.pos);
                 path.map(|path| (s, path))
             } else {
                 None
@@ -44,7 +44,7 @@ where
         .iter()
         .filter_map(|s| {
             if f(s) {
-                let path = pathfinding::a_star(&world.map, start, s.location());
+                let path = pathfinding::a_star(&world.map, start, s.get_non_generic().structure.pos);
                 path.map(|path| (s, path))
             } else {
                 None

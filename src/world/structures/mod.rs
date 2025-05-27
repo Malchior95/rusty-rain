@@ -1,5 +1,6 @@
 pub mod builders;
 pub mod shop;
+use impl_variant_non_generic::{ImplVariantNonGeneric, IntoNonGeneric};
 use shop::{gatherer::Gatherer, hearth::Hearth, producer::Producer, store::Store};
 use strum_macros::{Display, EnumDiscriminants, EnumIs};
 
@@ -7,8 +8,8 @@ use crate::math::Pos;
 
 use super::{World, inventory::Inventory, workers::Worker};
 
+#[derive(IntoNonGeneric)]
 pub struct Shop<T> {
-    //pub inventory: Inventory,
     pub structure: Structure,
     pub workers: Vec<Worker>,
     pub max_workers: u8,
@@ -16,7 +17,6 @@ pub struct Shop<T> {
     pub data: T,
 }
 
-#[derive(Clone)]
 pub struct Structure {
     pub pos: Pos,
 
@@ -26,6 +26,7 @@ pub struct Structure {
 
 #[derive(EnumDiscriminants, EnumIs)]
 #[strum_discriminants(derive(Display))]
+#[derive(ImplVariantNonGeneric)]
 pub enum ShopType {
     MainHearth(Shop<Hearth>),
     MainStore(Shop<Store>),
@@ -44,33 +45,6 @@ impl ShopType {
             ShopType::Gatherer(gatherer) => gatherer.process(world, delta),
             ShopType::Producer(producer) => producer.process(world, delta),
             _ => {} //currently no update necessary...
-        }
-    }
-
-    pub fn location(&self) -> Pos {
-        match self {
-            ShopType::MainHearth(shop) => shop.structure.pos,
-            ShopType::MainStore(shop) => shop.structure.pos,
-            ShopType::Gatherer(shop) => shop.structure.pos,
-            ShopType::Producer(shop) => shop.structure.pos,
-        }
-    }
-
-    pub fn inventory(&self) -> &Inventory {
-        match self {
-            ShopType::MainHearth(shop) => &shop.output,
-            ShopType::MainStore(shop) => &shop.output,
-            ShopType::Gatherer(shop) => &shop.output,
-            ShopType::Producer(shop) => &shop.output,
-        }
-    }
-
-    pub fn inventory_mut(&mut self) -> &mut Inventory {
-        match self {
-            ShopType::MainHearth(shop) => &mut shop.output,
-            ShopType::MainStore(shop) => &mut shop.output,
-            ShopType::Gatherer(shop) => &mut shop.output,
-            ShopType::Producer(shop) => &mut shop.output,
         }
     }
 }

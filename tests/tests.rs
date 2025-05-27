@@ -33,14 +33,14 @@ fn test_hearth() {
     let woodcutter = ws.first().unwrap();
 
     let worker = woodcutter.workers.first().unwrap();
-    let b = worker.break_progress().unwrap();
+    let b = worker.get_non_generic().break_progress;
 
     let hs = world.get_hearths();
     let hearth = hs.first().unwrap();
 
     info!("Break progress at: {}", b.progress);
 
-    //by the end of this test, woodcutter should have take a break, and a number of fuel should
+    //by the end of this test, woodcutter should have taken a break, and a number of fuel should
     //have been burned in the hearth
     assert!(b.progress < b.requirement);
     assert!(hearth.data.inventory.total_items() < 15.0);

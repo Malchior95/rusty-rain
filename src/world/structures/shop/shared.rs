@@ -45,7 +45,10 @@ pub fn handle_storing_complete(
     //TODO: in the future I might want to store not only in the store, but in the
     //closest shop that requires those resources. Then I would not want to put to
     //output (as in the store), but to the input or data.inventory (as in Hearth)
-    let maybe_store = world.shops.iter_mut().find(|s| s.location() == store_pos);
+    let maybe_store = world
+        .shops
+        .iter_mut()
+        .find(|s| s.get_non_generic().structure.pos == store_pos);
 
     let store = if let Some(store) = maybe_store {
         store
@@ -59,8 +62,8 @@ pub fn handle_storing_complete(
     info!("Adding to store action is being resolved by: {}", shop_id);
     info!("The following materials were added to Store's inventory: {}", inventory);
 
-    store.inventory_mut().add_range(inventory);
-    info!("The store now has: {}", store.inventory());
+    store.get_non_generic_mut().output.add_range(inventory);
+    info!("The store now has: {}", store.get_non_generic().output);
 }
 
 pub fn handle_poruction_complete(
@@ -86,7 +89,7 @@ pub fn supply_command(
 ) {
     if let Worker::Idle(idle_worker) = worker {
         let (closest_shop, path) = if let Some(x) = pathfinding_helpers::closest_shop_mut(shop_pos, world, |s| {
-            s.inventory().get(&InventoryItem::Wood) >= min_materials_to_consider_supplying
+            s.get_non_generic().output.get(&InventoryItem::Wood) >= min_materials_to_consider_supplying
         }) {
             x
         } else {
@@ -94,10 +97,13 @@ pub fn supply_command(
             return; //remain idle
         };
 
-        let stored_wood = closest_shop.inventory().get(&materials_to_supply);
+        let stored_wood = closest_shop.get_non_generic().output.get(&materials_to_supply);
         let to_take = f32::min(stored_wood, idle_worker.inventory.limit);
 
-        closest_shop.inventory_mut().remove(materials_to_supply, to_take);
+        closest_shop
+            .get_non_generic_mut()
+            .output
+            .remove(materials_to_supply, to_take);
         let reservation = Inventory::from_iter([(materials_to_supply, to_take)]);
 
         info!(
@@ -106,7 +112,7 @@ pub fn supply_command(
             reservation,
             closest_shop.discriminant(),
             path.last().unwrap(),
-            closest_shop.inventory()
+            closest_shop.get_non_generic().output
         );
 
         *worker = idle_worker.to_supplying(path, &world.map, reservation);

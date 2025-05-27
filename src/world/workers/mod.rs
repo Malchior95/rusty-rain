@@ -1,3 +1,4 @@
+use impl_variant_non_generic::{ImplVariantNonGeneric, IntoNonGeneric};
 use log::info;
 
 use crate::{
@@ -19,6 +20,7 @@ use super::{
     world_map::WorldMap,
 };
 
+#[derive(IntoNonGeneric)]
 pub struct WorkerWithAction<T> {
     pub name: String,
 
@@ -48,6 +50,7 @@ pub trait CanReturn {}
 pub trait CanIdle {}
 pub struct Idle();
 pub struct InHearth();
+pub struct Lost();
 pub struct SupplyingAction(TransitAction);
 pub struct StoringAction(TransitAction);
 pub struct ReturningAction(TransitAction);
@@ -62,6 +65,7 @@ impl CanIdle for ReturningAction {}
 impl CanIdle for ProducingAction {}
 impl CanIdle for Idle {} //If was trying to transition to a state, but path not found
 
+#[derive(ImplVariantNonGeneric)]
 pub enum Worker {
     //assigned actions
     Idle(WorkerWithAction<Idle>),
@@ -86,8 +90,9 @@ pub enum Worker {
     //ReturningMaterialsToStore(UnassignedWorkerWithAction<StoringAction>),
 
     //lost
-    Lost(LostWorker),
+    Lost(WorkerWithAction<Lost>),
     //occures when worker was out in the field, but was unable to find his way back to the store
+    //TODO: do some BasicAction countdown to retry pathfinding
 }
 
 pub enum WorkerActionResult {
@@ -108,9 +113,12 @@ impl Worker {
             let path = if let Some(path) = pathfinding::a_star(map, unassigned.pos, store_location) {
                 path
             } else {
-                return Worker::Lost(LostWorker {
-                    name: unassigned.name.clone(),
+                return Worker::Lost(WorkerWithAction {
+                    name: unassigned.name,
+                    inventory: unassigned.inventory,
                     pos: unassigned.pos,
+                    break_progress: BasicAction::new(120.0),
+                    action_data: Lost(),
                 });
             };
 
@@ -126,9 +134,12 @@ impl Worker {
         let path = if let Some(path) = pathfinding::dijkstra_closest(map, unassigned.pos, |t| t.is_store()) {
             path
         } else {
-            return Self::Lost(LostWorker {
+            return Worker::Lost(WorkerWithAction {
                 name: unassigned.name,
+                inventory: unassigned.inventory,
                 pos: unassigned.pos,
+                break_progress: BasicAction::new(120.0),
+                action_data: Lost(),
             });
         };
 
@@ -433,10 +444,7 @@ where
         let path = if let Some(path) = pathfinding::a_star(map, self.pos, assigned_store_location) {
             path
         } else {
-            return Worker::Lost(LostWorker {
-                name: self.name.clone(),
-                pos: self.pos,
-            });
+            return Worker::Lost(WorkerWithAction::clone_with(self, Lost()));
         };
 
         Worker::Returning(WorkerWithAction::clone_with(

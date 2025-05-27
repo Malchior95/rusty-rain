@@ -13,10 +13,6 @@ impl Pos {
     ) -> Self {
         Self { x, y }
     }
-
-    pub fn from_t(pos: (usize, usize)) -> Self {
-        Self { x: pos.0, y: pos.1 }
-    }
 }
 
 impl Display for Pos {

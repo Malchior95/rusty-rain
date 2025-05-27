@@ -1,28 +1,11 @@
 use crate::world::{
     World,
-    actions::BasicAction,
     structures::{
         Shop, ShopType,
         shop::{gatherer::Gatherer, hearth::Hearth, store::Store},
     },
-    workers::Worker,
     world_map::resources::ResourceType,
 };
-
-impl Worker {
-    pub fn break_progress(&self) -> Option<&BasicAction> {
-        match self {
-            Worker::Idle(w) => Some(&w.break_progress),
-            Worker::Supplying(w) => Some(&w.break_progress),
-            Worker::Storing(w) => Some(&w.break_progress),
-            Worker::Gathering(w) => Some(&w.break_progress),
-            Worker::Returning(w) => Some(&w.break_progress),
-            Worker::TakingBreak(w) => Some(&w.break_progress),
-            Worker::Producing(w) => Some(&w.break_progress),
-            Worker::Lost(_) => None,
-        }
-    }
-}
 
 impl World {
     pub fn get_gatherers(

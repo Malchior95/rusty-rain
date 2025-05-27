@@ -32,8 +32,6 @@ pub fn build<'a, T, F>(
         return;
     }
 
-    let str = structure.clone();
-
     let shop = Shop {
         structure,
         workers: Vec::with_capacity(max_workers as usize),
@@ -44,7 +42,9 @@ pub fn build<'a, T, F>(
 
     let shop_type = shop_type_wrap(shop);
 
-    world.map.build(&str, || TileType::Structure(shop_type.discriminant()));
+    world.map.build(&shop_type.get_non_generic().structure, || {
+        TileType::Structure(shop_type.discriminant())
+    });
 
     world.shops.push_back(shop_type);
 }
