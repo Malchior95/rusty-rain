@@ -173,9 +173,6 @@ fn handle_storing(
     assigned_shop_pos: Pos,
 ) -> (Worker, WorkerActionResult) {
     worker.progress_break_requirement(delta);
-    //what if the store was removed? Idc - invoking shop will receive the list of materials
-    //this worker had. Could maybe reassign them to this worker and they will be returned
-    //to the shop.
     let result = worker.action_data.0.continue_action(delta);
 
     match result {
@@ -198,8 +195,30 @@ fn handle_storing(
             {
                 store
             } else {
-                //FIXME: No Store found at a location - look for new one
-                panic!();
+                info!(
+                    "{} arrived at the store, but the store is missing - searching for new store!",
+                    worker.name
+                );
+                let (_, path) =
+                    if let Some(sp) = pathfinding_helpers::closest_shop(worker.pos, world, |s| s.is_main_store()) {
+                        sp
+                    } else {
+                        info!(
+                            "{} was looking for another store, but there are no more stores. Becoming lost.",
+                            worker.name
+                        );
+                        return (
+                            Worker::Lost(WorkerWithAction::to_new_action(worker, LostAction::new())),
+                            WorkerActionResult::InProgress,
+                        );
+                    };
+                return (
+                    Worker::Storing(WorkerWithAction::to_new_action(
+                        worker,
+                        StoringAction(TransitAction::new(path, &world.map)),
+                    )),
+                    WorkerActionResult::InProgress,
+                );
             };
 
             let items: Vec<_> = worker.inventory.drain().collect();

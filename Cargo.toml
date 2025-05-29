@@ -9,3 +9,4 @@ env_logger = "0.11.8"
 strum = "0.27.1"
 strum_macros = "0.27.1"
 impl_variant_non_generic = { path="../impl_variant_non_generic" }
+#enum_dispatch = "0.3.13"
