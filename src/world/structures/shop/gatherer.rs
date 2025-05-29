@@ -1,4 +1,9 @@
-use crate::world::{World, structures::Shop, workers::WorkerActionResult, world_map::resources::ResourceType};
+use crate::world::{
+    World,
+    structures::{Shop, ShopTypeDiscriminants},
+    workers::WorkerActionResult,
+    world_map::resources::ResourceType,
+};
 
 use super::shared;
 
@@ -21,10 +26,12 @@ impl Shop<Gatherer> {
         delta: f32,
     ) {
         let shop_id = &format!("Gatherer<{}>", self.data.resource_type);
-        for worker in &mut self.workers {
-            let mut result = worker.continue_action(delta, self.structure.pos, world);
+        for _ in 0..self.workers.len() {
+            let worker = self.workers.pop_front().unwrap();
+            let (mut worker, result) =
+                worker.continue_action(self.structure.pos, ShopTypeDiscriminants::Gatherer, delta, world);
 
-            match &mut result {
+            match result {
                 WorkerActionResult::InProgress => {
                     //continue action
                 }
@@ -33,17 +40,13 @@ impl Shop<Gatherer> {
                     unreachable!("Gatherer will never produce.")
                 }
 
-                WorkerActionResult::BroughtToStore(inventory, pos) => {
-                    shared::handle_storing_complete(inventory, *pos, world, shop_id);
-                }
-
                 WorkerActionResult::BroughtToShop(inventory) => {
                     shared::handle_supply_complete(inventory, &mut self.output, shop_id);
                 }
 
                 WorkerActionResult::Idle => {
                     if self.output.is_full() || self.data.storing_all {
-                        shared::store_command(
+                        worker = shared::store_command(
                             worker,
                             world,
                             self.structure.pos,
@@ -51,12 +54,12 @@ impl Shop<Gatherer> {
                             &mut self.data.storing_all,
                             shop_id,
                         );
-                        continue;
+                    } else {
+                        worker = shared::gather_command(worker, world, &self.data.resource_type, shop_id);
                     }
-
-                    shared::gather_command(worker, world, &self.data.resource_type, shop_id);
                 }
             }
+            self.workers.push_back(worker);
         }
     }
 }

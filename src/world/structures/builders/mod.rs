@@ -1,3 +1,5 @@
+use std::collections::LinkedList;
+
 use strum::IntoDiscriminant;
 
 use crate::{
@@ -34,7 +36,7 @@ pub fn build<'a, T, F>(
 
     let shop = Shop {
         structure,
-        workers: Vec::with_capacity(max_workers as usize),
+        workers: LinkedList::new(),
         max_workers,
         output: Inventory::limited(10.0),
         data,
@@ -114,8 +116,8 @@ pub fn build_lumbermill<'a>(
         Producer {
             storing_all: false,
             receipe: Receipe {
-                input: Inventory::from_iter([(InventoryItem::Wood, 2.0)]),
-                output: Inventory::from_iter([(InventoryItem::Plank, 3.0)]),
+                input: vec![(InventoryItem::Wood, 2.0)],
+                output: vec![(InventoryItem::Plank, 3.0)],
                 requirement: 30.0,
             },
             input: Inventory::new(),

@@ -5,7 +5,6 @@ use super::world_map::WorldMap;
 pub mod gathering_action;
 pub mod taking_break_action;
 
-#[derive(Clone)]
 pub struct BasicAction {
     pub progress: f32,
     pub requirement: f32,
@@ -30,6 +29,8 @@ pub enum TransitActionResult {
     Completed(Pos),
 }
 
+//INFO: Path is always non empty - that's why I unwrap so happily in this file. Maybe I should wrap that
+//Vec<> in something to make it expressed in the code
 impl TransitAction {
     pub fn new(
         path: Vec<Pos>,

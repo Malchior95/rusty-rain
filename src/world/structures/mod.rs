@@ -1,5 +1,7 @@
 pub mod builders;
 pub mod shop;
+use std::collections::LinkedList;
+
 use impl_variant_non_generic::{ImplVariantNonGeneric, IntoNonGeneric};
 use shop::{gatherer::Gatherer, hearth::Hearth, producer::Producer, store::Store};
 use strum_macros::{Display, EnumDiscriminants, EnumIs};
@@ -11,7 +13,7 @@ use super::{World, inventory::Inventory, workers::Worker};
 #[derive(IntoNonGeneric)]
 pub struct Shop<T> {
     pub structure: Structure,
-    pub workers: Vec<Worker>,
+    pub workers: LinkedList<Worker>,
     pub max_workers: u8,
     pub output: Inventory, //todo: really needed here? maybe move to data?
     pub data: T,

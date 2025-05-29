@@ -1,7 +1,6 @@
 use std::io::Write;
 
 use log::info;
-use rusty_rain::world::world_map::resources::ResourceType;
 use std::sync::atomic::Ordering;
 
 use rusty_rain::FRAME_NUM;
@@ -29,20 +28,17 @@ fn test_hearth() {
         seconds += DELTA;
     }
 
-    let ws = world.get_gatherers(&ResourceType::Tree);
-    let woodcutter = ws.first().unwrap();
-
-    let worker = woodcutter.workers.first().unwrap();
-    let b = worker.get_non_generic().break_progress;
-
     let hs = world.get_hearths();
     let hearth = hs.first().unwrap();
+    let tender = hearth.workers.front().unwrap();
+    let b = tender.get_non_generic().break_progress;
 
     info!("Break progress at: {}", b.progress);
 
     //by the end of this test, woodcutter should have taken a break, and a number of fuel should
     //have been burned in the hearth
-    assert!(b.progress < b.requirement);
+    assert!(b.progress < 3.0 * 60.0);
+    assert!(!tender.get_non_generic().exhausted);
     assert!(hearth.data.inventory.total_items() < 15.0);
 }
 

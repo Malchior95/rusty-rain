@@ -1,11 +1,11 @@
 use std::fmt::Display;
 
-use super::inventory::Inventory;
+use super::inventory::InventoryItems;
 
 #[derive(Clone)]
 pub struct Receipe {
-    pub input: Inventory,
-    pub output: Inventory, //maybe production can produce multiple things???
+    pub input: Vec<InventoryItems>,
+    pub output: Vec<InventoryItems>, //maybe production can produce multiple things???
     pub requirement: f32,
 }
 
@@ -14,7 +14,15 @@ impl Display for Receipe {
         &self,
         f: &mut std::fmt::Formatter<'_>,
     ) -> std::fmt::Result {
-        write!(f, "{} => {} in {}", self.input, self.output, self.requirement)?;
+        for (key, item) in &self.input {
+            write!(f, "{} {} ", key, item)?;
+        }
+        write!(f, "=> ")?;
+
+        for (key, item) in &self.output {
+            write!(f, "{} {} ", key, item)?;
+        }
+        write!(f, "t: {}", self.requirement)?;
         Ok(())
     }
 }

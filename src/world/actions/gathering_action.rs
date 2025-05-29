@@ -1,7 +1,7 @@
 use crate::{
     math::Pos,
     world::{
-        inventory::Inventory,
+        inventory::InventoryItems,
         world_map::{TileType, WorldMap},
     },
 };
@@ -20,7 +20,7 @@ pub enum GatheringActionInternalState {
 
 pub enum GatheringActionResult {
     InProgress(Pos),
-    Completed(Inventory),
+    Completed(Vec<InventoryItems>),
 }
 
 impl GatheringAction {
@@ -63,7 +63,7 @@ impl GatheringAction {
                         let resource = map.get(&self.pos);
                         if let TileType::Resource(_, _, _) = resource {
                         } else {
-                            return GatheringActionResult::Completed(Inventory::new());
+                            return GatheringActionResult::Completed(vec![]);
                         }
                     }
                 }

@@ -1,6 +1,6 @@
 use strum_macros::Display;
 
-use crate::world::inventory::{Inventory, InventoryItem};
+use crate::world::inventory::{InventoryItem, InventoryItems};
 
 use super::TileType;
 
@@ -13,13 +13,13 @@ pub enum ResourceType {
 }
 
 pub struct ResourceCharge {
-    pub per_gather: Inventory,
+    pub per_gather: Vec<InventoryItems>,
     pub total: f32,
     pub current: f32,
 }
 
 impl ResourceCharge {
-    pub fn gather(&mut self) -> Inventory {
+    pub fn gather(&mut self) -> Vec<InventoryItems> {
         self.current -= 1.0;
         self.per_gather.clone()
     }
@@ -30,7 +30,7 @@ impl ResourceType {
         TileType::Resource(
             ResourceType::Tree,
             ResourceCharge {
-                per_gather: Inventory::from_iter([(InventoryItem::Wood, 1.0), (InventoryItem::Resin, 0.2)]),
+                per_gather: vec![(InventoryItem::Wood, 1.0), (InventoryItem::Resin, 0.2)],
                 total: 10.0,
                 current: 10.0,
             },
@@ -42,7 +42,7 @@ impl ResourceType {
         TileType::Resource(
             ResourceType::Berries,
             ResourceCharge {
-                per_gather: Inventory::from_iter([(InventoryItem::Berries, 1.0), (InventoryItem::Herbs, 0.2)]),
+                per_gather: vec![(InventoryItem::Berries, 1.0), (InventoryItem::Herbs, 0.2)],
                 total: 50.0,
                 current: 50.0,
             },

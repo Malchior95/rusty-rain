@@ -84,28 +84,30 @@ pub fn new_test_world(
 pub fn configure_world(world: &mut World) {
     let maybe_hearth = builders::build_hearth(world, Pos::new(world.map.width() / 2, world.map.height() / 2));
     if let Some(hearth) = maybe_hearth {
-        hearth.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
+        hearth.workers.push_back(Worker::Idle(WorkerWithAction::<Idle> {
             name: "Hearth tender".to_string(),
             inventory: Inventory::limited(5.0),
             pos: hearth.structure.pos,
             break_progress: BasicAction::new(120.0),
+            exhausted: false,
             action_data: Idle(),
         }));
     };
 
     let maybe_store = builders::build_mainstore(world, Pos::new(4, 3));
     if let Some(store) = maybe_store {
-        store.output.add(InventoryItem::Wood, 40.0);
+        store.output.add(&InventoryItem::Wood, 40.0);
     }
 
     let maybe_woodcutter = builders::build_woodcutter(world, Pos::new(11, 5));
 
     if let Some(woodcutter) = maybe_woodcutter {
-        woodcutter.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
+        woodcutter.workers.push_back(Worker::Idle(WorkerWithAction::<Idle> {
             name: "Woodchuck Chuck".to_string(),
             inventory: Inventory::limited(5.0),
             pos: woodcutter.structure.pos,
             break_progress: BasicAction::new(120.0),
+            exhausted: false,
             action_data: Idle(),
         }));
     };
@@ -113,11 +115,12 @@ pub fn configure_world(world: &mut World) {
     let maybe_lumbermill = builders::build_lumbermill(world, Pos::new(5, 9));
 
     if let Some(lumbermill) = maybe_lumbermill {
-        lumbermill.workers.push(Worker::Idle(WorkerWithAction::<Idle> {
+        lumbermill.workers.push_back(Worker::Idle(WorkerWithAction::<Idle> {
             name: "Jane".to_string(),
             inventory: Inventory::limited(5.0),
             pos: lumbermill.structure.pos,
             break_progress: BasicAction::new(120.0),
+            exhausted: false,
             action_data: Idle(),
         }));
     };

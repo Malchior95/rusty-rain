@@ -4,7 +4,7 @@ use crate::world::{
     World,
     actions::{ActionResult, BasicAction},
     inventory::{Inventory, InventoryItem},
-    structures::Shop,
+    structures::{Shop, ShopTypeDiscriminants},
     workers::WorkerActionResult,
 };
 
@@ -59,18 +59,15 @@ impl Shop<Hearth> {
         delta: f32,
     ) {
         let shop_id = &"Hearth".to_string();
-        for worker in &mut self.workers {
-            let mut result = worker.continue_action(delta, self.structure.pos, world);
+        for _ in 0..self.workers.len() {
+            let worker = self.workers.pop_front().unwrap();
 
-            match &mut result {
+            let (mut worker, result) =
+                worker.continue_action(self.structure.pos, ShopTypeDiscriminants::MainHearth, delta, world);
+
+            match result {
                 WorkerActionResult::InProgress => {
                     //continue action
-                }
-
-                WorkerActionResult::BroughtToStore(_, _) => {
-                    //hearth worker does not expect to be bringing anything to store - i.e. it does
-                    //not invoke idle_worker.to_storing()
-                    unreachable!("Hearth will never provide to store.");
                 }
 
                 WorkerActionResult::ProductionComplete(_) => {
@@ -82,21 +79,22 @@ impl Shop<Hearth> {
                 }
 
                 WorkerActionResult::Idle => {
+                    //TODO: to function so that I can return early nicely
                     if self.data.inventory.get(&InventoryItem::Wood) > Hearth::MATERIAL_SUPPLYING_THRESHOLD {
                         //no need to fetch fuel - stock full
-                        continue;
+                    } else {
+                        worker = shared::supply_command(
+                            worker,
+                            self.structure.pos,
+                            world,
+                            Hearth::MIN_MATERIALS_TO_CONSIDER_SUPPLYING,
+                            InventoryItem::Wood,
+                            shop_id,
+                        );
                     }
-
-                    shared::supply_command(
-                        worker,
-                        self.structure.pos,
-                        world,
-                        Hearth::MIN_MATERIALS_TO_CONSIDER_SUPPLYING,
-                        InventoryItem::Wood,
-                        shop_id,
-                    );
                 }
             }
+            self.workers.push_back(worker);
         }
     }
 }
@@ -122,7 +120,7 @@ fn process_idle(
     let wood = inventory.get(&InventoryItem::Wood);
 
     if wood > 1.0 && has_worker {
-        inventory.remove(InventoryItem::Wood, 1.0);
+        inventory.remove(&InventoryItem::Wood, 1.0);
 
         let burning_action = BasicAction::new(Hearth::WOOD_BURNING_RATE);
         info!("Hearth has started burning, remaining fuel: {}", wood - 1.0);

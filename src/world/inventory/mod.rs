@@ -13,7 +13,8 @@ pub enum InventoryItem {
     Plank, //TODO: more
 }
 
-#[derive(Clone)]
+pub type InventoryItems = (InventoryItem, f32);
+
 pub struct Inventory {
     inv: HashMap<InventoryItem, f32>,
     pub limit: f32,
@@ -24,7 +25,7 @@ impl Display for Inventory {
         &self,
         f: &mut std::fmt::Formatter<'_>,
     ) -> std::fmt::Result {
-        for (key, item) in self.iter() {
+        for (key, item) in self.inv.iter() {
             write!(f, "{} {} ", key, item)?;
         }
         Ok(())
@@ -65,7 +66,7 @@ impl Inventory {
 
     pub fn total_items(&self) -> f32 {
         let mut acc = 0.0;
-        for (_, &amount) in self.iter() {
+        for (_, &amount) in self.inv.iter() {
             acc += amount;
         }
         acc
@@ -73,7 +74,7 @@ impl Inventory {
 
     pub fn from_iter<T>(iter: T) -> Self
     where
-        T: IntoIterator<Item = (InventoryItem, f32)>,
+        T: IntoIterator<Item = InventoryItems>,
     {
         Self {
             inv: HashMap::from_iter(iter),
@@ -81,17 +82,26 @@ impl Inventory {
         }
     }
 
-    pub fn add_range(
+    pub fn add_range<T>(
         &mut self,
-        to_add: &Inventory,
-    ) {
-        for (&key, &item) in to_add.iter() {
-            self.add(key, item);
+        to_add: T,
+    ) where
+        T: IntoIterator<Item = InventoryItems>,
+    {
+        for (key, item) in to_add {
+            self.add(&key, item);
         }
     }
 
-    pub fn iter(&self) -> std::collections::hash_map::Iter<'_, InventoryItem, f32> {
-        self.inv.iter()
+    pub fn remove_range<T>(
+        &mut self,
+        to_remove: T,
+    ) where
+        T: IntoIterator<Item = InventoryItems>,
+    {
+        for (key, item) in to_remove {
+            self.remove(&key, item);
+        }
     }
 
     pub fn get(
@@ -101,35 +111,41 @@ impl Inventory {
         self.inv.get(item).unwrap_or(&0.0).clone()
     }
 
+    pub fn get_mut(
+        &mut self,
+        item: &InventoryItem,
+    ) -> &mut f32 {
+        let exists = self.inv.contains_key(item);
+        if !exists {
+            self.inv.insert(*item, 0.0);
+        }
+        self.inv.get_mut(item).unwrap()
+    }
+
     pub fn add(
         &mut self,
-        item: InventoryItem,
+        item: &InventoryItem,
         amount: f32,
     ) {
-        let current_amount = self.get(&item);
-        self.inv.insert(item, current_amount + amount);
+        let current_amount = self.get_mut(item);
+        *current_amount += amount;
     }
 
     pub fn remove(
         &mut self,
-        item: InventoryItem,
+        item: &InventoryItem,
         amount: f32,
     ) {
-        let current_amount = self.get(&item);
-        self.inv.insert(item, current_amount - amount);
-    }
-
-    pub fn remove_range(
-        &mut self,
-        to_remove: &Inventory,
-    ) {
-        for (&key, &amount) in to_remove.iter() {
-            self.remove(key, amount);
-        }
+        let current_amount = self.get_mut(item);
+        *current_amount -= amount;
     }
 
     pub fn drain(&mut self) -> std::collections::hash_map::Drain<InventoryItem, f32> {
         self.inv.drain()
+    }
+
+    pub fn clear(&mut self) {
+        self.inv.clear();
     }
 
     pub fn transfer_until_full(
@@ -138,7 +154,7 @@ impl Inventory {
     ) {
         if target.limit <= 0.0 || self.total_items() < target.limit - target.total_items() {
             for (key, items) in self.drain() {
-                target.add(key, items);
+                target.add(&key, items);
             }
         } else {
             for (&key, items) in self.inv.iter_mut() {
@@ -148,7 +164,7 @@ impl Inventory {
                 }
                 let to_transfer = f32::min(remaining_capacity, *items);
                 *items -= to_transfer;
-                target.add(key, to_transfer);
+                target.add(&key, to_transfer);
             }
         }
     }

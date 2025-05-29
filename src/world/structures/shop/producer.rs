@@ -2,9 +2,9 @@ use log::info;
 
 use crate::world::{
     World,
-    inventory::{Inventory, InventoryItem},
+    inventory::{Inventory, InventoryItem, InventoryItems},
     receipes::Receipe,
-    structures::Shop,
+    structures::{Shop, ShopTypeDiscriminants},
     workers::WorkerActionResult,
 };
 
@@ -23,16 +23,15 @@ impl Shop<Producer> {
         delta: f32,
     ) {
         let shop_id = &format!("Producer<{}>", self.data.receipe);
-        for worker in &mut self.workers {
-            let mut result = worker.continue_action(delta, self.structure.pos, world);
+        for _ in 0..self.workers.len() {
+            let worker = self.workers.pop_front().unwrap();
 
-            match &mut result {
+            let (mut worker, result) =
+                worker.continue_action(self.structure.pos, ShopTypeDiscriminants::Producer, delta, world);
+
+            match result {
                 WorkerActionResult::InProgress => {
                     //continue action
-                }
-
-                WorkerActionResult::BroughtToStore(inventory, pos) => {
-                    shared::handle_storing_complete(inventory, *pos, world, shop_id);
                 }
 
                 WorkerActionResult::BroughtToShop(inventory) => {
@@ -44,8 +43,10 @@ impl Shop<Producer> {
                 }
 
                 WorkerActionResult::Idle => {
+                    //TODO: make this a function - too much logic, cannot nicely return early from
+                    //match statement
                     if self.output.is_full() || self.data.storing_all {
-                        shared::store_command(
+                        worker = shared::store_command(
                             worker,
                             world,
                             self.structure.pos,
@@ -53,36 +54,40 @@ impl Shop<Producer> {
                             &mut self.data.storing_all,
                             shop_id,
                         );
-                        continue;
-                    }
-
+                    } else
                     //if receipe requirements met - produce, otherwise, supply
-
-                    let maybe_materials_to_supply = get_missing_materials(&self.data.receipe.input, &self.data.input);
-
-                    if let Some((materials_to_supply, amount)) = maybe_materials_to_supply {
+                    if let Some((materials_to_supply, amount)) =
+                        get_missing_materials(&self.data.receipe.input, &self.data.input)
+                    {
                         info!(
                             "{} is missing {} {} to start producing",
                             shop_id, materials_to_supply, amount
                         );
 
                         info!("{} only has {}", shop_id, &self.data.input);
-                        shared::supply_command(worker, self.structure.pos, world, amount, materials_to_supply, shop_id);
-                        continue;
+                        worker = shared::supply_command(
+                            worker,
+                            self.structure.pos,
+                            world,
+                            amount,
+                            materials_to_supply,
+                            shop_id,
+                        );
+                    } else {
+                        worker = shared::produce_command(worker, &self.data.receipe, shop_id);
                     }
-
-                    shared::produce_command(worker, &self.data.receipe, shop_id);
                 }
             }
+            self.workers.push_back(worker);
         }
     }
 }
 
 fn get_missing_materials(
-    receipe_input: &Inventory,
+    receipe_input: &Vec<InventoryItems>,
     current_store: &Inventory,
 ) -> Option<(InventoryItem, f32)> {
-    for (&key, &item) in receipe_input.iter() {
+    for &(key, item) in receipe_input {
         if current_store.get(&key) < item {
             return Some((key, item));
         }
