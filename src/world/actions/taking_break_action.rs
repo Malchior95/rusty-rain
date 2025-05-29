@@ -18,6 +18,8 @@ pub enum TakingBreakActionResult {
 }
 
 impl TakingBreakAction {
+    pub const BREAK_TIME: f32 = 30.0;
+
     pub fn new(
         path: Vec<Pos>,
         map: &WorldMap,
@@ -41,7 +43,9 @@ impl TakingBreakAction {
                 match result {
                     TransitActionResult::InProgress(pos) => self.pos = pos,
                     TransitActionResult::Completed(pos) => {
-                        self.state = TakingBreakActionInternalState::TakingBreak(BasicAction::new(10.0));
+                        self.state = TakingBreakActionInternalState::TakingBreak(BasicAction::new(
+                            TakingBreakAction::BREAK_TIME,
+                        ));
                         self.pos = pos;
                     }
                 }

@@ -9,7 +9,7 @@ use rusty_rain::{
         actions::BasicAction,
         inventory::{Inventory, InventoryItem},
         structures::builders,
-        workers::{Idle, Worker, WorkerWithAction},
+        workers::{Worker, worker_with_action::Idle, worker_with_action::WorkerWithAction},
         world_map::{TileType, WorldMap, resources::ResourceType},
     },
 };

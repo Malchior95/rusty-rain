@@ -1,87 +1,42 @@
-use impl_variant_non_generic::{ImplVariantNonGeneric, IntoNonGeneric};
+use impl_variant_non_generic::ImplVariantNonGeneric;
 use log::info;
 
 use crate::{
-    ai::pathfinding::{self, pathfinding_helpers},
+    ai::pathfinding::pathfinding_helpers,
     math::Pos,
-    world::actions::{
-        TransitActionResult, gathering_action::GatheringActionResult, taking_break_action::TakingBreakActionResult,
+    world::{
+        World,
+        actions::BasicAction,
+        actions::{
+            ActionResult, TransitAction, TransitActionResult,
+            gathering_action::{GatheringAction, GatheringActionResult},
+            taking_break_action::{TakingBreakAction, TakingBreakActionResult},
+        },
+        inventory::InventoryItems,
+        receipes::Receipe,
+        structures::Shop,
+        structures::ShopTypeDiscriminants,
+        workers::worker_with_action::{
+            Idle, LostAction, ProducingAction, ReturningAction, StoringAction, SupplyingAction, WorkerWithAction,
+            WorkerWithActionNonGeneric, WorkerWithActionNonGenericMut,
+        },
     },
 };
 
-use super::{
-    World,
-    actions::{
-        ActionResult, BasicAction, TransitAction, gathering_action::GatheringAction,
-        taking_break_action::TakingBreakAction,
-    },
-    inventory::{Inventory, InventoryItems},
-    receipes::Receipe,
-    structures::ShopTypeDiscriminants,
-    world_map::WorldMap,
-};
-
-#[derive(IntoNonGeneric)]
-pub struct WorkerWithAction<T> {
-    pub name: String,
-
-    pub inventory: Inventory,
-    pub pos: Pos,
-
-    pub break_progress: BasicAction,
-    pub exhausted: bool,
-
-    pub action_data: T,
-}
-
-pub trait CanReturn {}
-pub trait CanIdle {}
-pub struct Idle();
-pub struct InHearth();
-pub struct LostAction();
-pub struct SupplyingAction(TransitAction);
-pub struct StoringAction(TransitAction);
-pub struct ReturningAction(TransitAction);
-pub struct ProducingAction(BasicAction, Receipe);
-
-impl CanReturn for SupplyingAction {}
-impl CanReturn for StoringAction {}
-impl CanReturn for GatheringAction {}
-impl CanReturn for TakingBreakAction {}
-impl CanReturn for Idle {}
-
-impl CanIdle for ReturningAction {}
-impl CanIdle for ProducingAction {}
-impl CanIdle for Idle {} //If was trying to transition to a state, but path not found
+pub mod worker_with_action;
 
 #[derive(ImplVariantNonGeneric)]
 pub enum Worker {
-    //assigned actions
     Idle(WorkerWithAction<Idle>),
     Supplying(WorkerWithAction<SupplyingAction>),
     Storing(WorkerWithAction<StoringAction>),
     Gathering(WorkerWithAction<GatheringAction>),
-
     Returning(WorkerWithAction<ReturningAction>),
-
     TakingBreak(WorkerWithAction<TakingBreakAction>),
-
     Producing(WorkerWithAction<ProducingAction>),
-
-    ////not assigned actions
-    //ReturningToHearth(UnassignedWorkerWithAction<ReturningAction>),
-    //InHearth(UnassignedWorkerWithAction<InHearth>),
-    //Building,
-    //SupplyingBuildZone(UnassignedWorkerWithAction<SupplyAction>),
-
-    ////Maybe? AtS does not implement this action - materials are just magically teleported to the
-    ////store if action is cacelled
-    //ReturningMaterialsToStore(UnassignedWorkerWithAction<StoringAction>),
-
-    //lost
     Lost(WorkerWithAction<LostAction>),
-    //occures when worker was out in the field, but was unable to find his way back to the store
-    //TODO: do some BasicAction countdown to retry pathfinding
+    //occures when worker was out in the field, but was unable to find his way back to the store,
+    //or when worker was just assigned and is looking for its way to the store
 }
 
 pub enum WorkerActionResult {
@@ -92,34 +47,21 @@ pub enum WorkerActionResult {
 }
 
 impl Worker {
-    pub fn assign<T>(
+    pub const TIME_TO_BREAK: f32 = 120.0;
+
+    pub fn assign<T, K>(
+        shop: &mut Shop<K>,
         unassigned: WorkerWithAction<T>,
-        map: &WorldMap,
-        store_location: Pos,
-    ) -> Self {
-        if unassigned.inventory.is_empty() {
-            let path = if let Some(path) = pathfinding::a_star(map, unassigned.pos, store_location) {
-                path
-            } else {
-                return Worker::Lost(WorkerWithAction::move_with(unassigned, LostAction()));
-            };
-
-            return Self::Returning(WorkerWithAction::move_with(
-                unassigned,
-                ReturningAction(TransitAction::new(path, map)),
-            ));
-        }
-
-        let path = if let Some(path) = pathfinding::dijkstra_closest(map, unassigned.pos, |t| t.is_store()) {
-            path
-        } else {
-            return Worker::Lost(WorkerWithAction::move_with(unassigned, LostAction()));
-        };
-
-        Self::Storing(WorkerWithAction::move_with(
+    ) {
+        //this worker will immediatelly try to find it's shop, maybe first storing it's inventory
+        let worker = Worker::Lost(WorkerWithAction::to_new_action(
             unassigned,
-            StoringAction(TransitAction::new(path, map)),
-        ))
+            LostAction(BasicAction {
+                requirement: 0.0,
+                progress: 0.0,
+            }),
+        ));
+        shop.workers.push_back(worker);
     }
 
     pub fn continue_action(
@@ -130,353 +72,276 @@ impl Worker {
         world: &mut World,
     ) -> (Worker, WorkerActionResult) {
         match self {
-            Worker::Returning(mut worker) => {
-                worker.progress_break_requirement(delta);
-                let result = worker.action_data.0.continue_action(delta);
-
-                match result {
-                    TransitActionResult::InProgress(pos) => {
-                        worker.pos = pos;
-                    }
-                    TransitActionResult::Completed(pos) => {
-                        worker.pos = pos;
-
-                        info!("{} has returned to the shop at {}, and is now idle.", worker.name, pos);
-                        if !worker.inventory.is_empty() {
-                            info!(
-                                "{} has brought the following items to the shop: {}",
-                                worker.name, worker.inventory
-                            );
-                        }
-
-                        let items: Vec<_> = worker.inventory.drain().collect();
-                        return (worker.to_idle(), WorkerActionResult::BroughtToShop(items));
-                    }
-                }
-
-                return (Worker::Returning(worker), WorkerActionResult::InProgress);
-            }
-
-            Worker::Storing(mut worker) => {
-                worker.progress_break_requirement(delta);
-                //what if the store was removed? Idc - invoking shop will receive the list of materials
-                //this worker had. Could maybe reassign them to this worker and they will be returned
-                //to the shop.
-                let result = worker.action_data.0.continue_action(delta);
-
-                match result {
-                    TransitActionResult::InProgress(pos) => {
-                        worker.pos = pos;
-                        return (Worker::Storing(worker), WorkerActionResult::InProgress);
-                    }
-                    TransitActionResult::Completed(pos) => {
-                        worker.pos = pos;
-
-                        info!(
-                            "{} has brought items {} to store at {} and is now returning.",
-                            worker.name, worker.inventory, pos
-                        );
-
-                        let store = if let Some(store) = world
-                            .shops
-                            .iter_mut()
-                            .find(|s| s.is_main_store() && s.get_non_generic().structure.pos == worker.pos)
-                        {
-                            store
-                        } else {
-                            //FIXME: No Store found at a location - look for new one
-                            panic!();
-                        };
-
-                        let items: Vec<_> = worker.inventory.drain().collect();
-
-                        store.get_non_generic_mut().output.add_range(items);
-                        worker.inventory.clear();
-
-                        return (
-                            worker.to_returning(&mut world.map, assigned_shop_pos),
-                            WorkerActionResult::InProgress,
-                        );
-                    }
-                }
-            }
-            Worker::Supplying(mut worker) => {
-                worker.progress_break_requirement(delta);
-                let result = worker.action_data.0.continue_action(delta);
-
-                match result {
-                    TransitActionResult::InProgress(pos) => {
-                        worker.pos = pos;
-                        return (Worker::Supplying(worker), WorkerActionResult::InProgress);
-                    }
-                    TransitActionResult::Completed(pos) => {
-                        worker.pos = pos;
-
-                        info!(
-                            "{} has taken reserved items at {} and is now returning.",
-                            worker.name, pos
-                        );
-                        info!("Reserved items: {}", worker.inventory);
-
-                        return (
-                            worker.to_returning(&mut world.map, assigned_shop_pos),
-                            WorkerActionResult::InProgress,
-                        );
-                    }
-                }
-            }
-            Worker::Gathering(mut worker) => {
-                worker.progress_break_requirement(delta);
-                let result = worker.action_data.continue_action(&mut world.map, delta);
-
-                match result {
-                    GatheringActionResult::InProgress(pos) => {
-                        worker.pos = pos;
-
-                        return (Worker::Gathering(worker), WorkerActionResult::InProgress);
-                    }
-                    GatheringActionResult::Completed(inv) => {
-                        worker.inventory.add_range(inv);
-
-                        info!(
-                            "{} has gathered items at {} and is now returning.",
-                            worker.name, worker.pos
-                        );
-                        info!("Gathered items: {}", worker.inventory);
-
-                        return (
-                            worker.to_returning(&mut world.map, assigned_shop_pos),
-                            WorkerActionResult::InProgress,
-                        );
-                    }
-                }
-            }
-            Worker::Producing(mut worker) => {
-                worker.progress_break_requirement(delta);
-                let result = worker.action_data.0.continue_action(delta);
-
-                match result {
-                    ActionResult::InProgress => {
-                        return (Worker::Producing(worker), WorkerActionResult::InProgress);
-                    }
-                    ActionResult::Completed => {
-                        info!("{} has completed production.", worker.name);
-                        let receipe = worker.action_data.1.clone();
-
-                        return (worker.to_idle(), WorkerActionResult::ProductionComplete(receipe));
-                    }
-                }
-            }
-            Worker::TakingBreak(mut worker) => {
-                let result = worker.action_data.continue_action(delta);
-
-                match result {
-                    TakingBreakActionResult::InProgress(pos) => {
-                        worker.pos = pos;
-
-                        return (Worker::TakingBreak(worker), WorkerActionResult::InProgress);
-                    }
-                    TakingBreakActionResult::Completed => {
-                        info!(
-                            "{} has finished break at {}, and is now returning.",
-                            worker.name, worker.pos
-                        );
-                        worker.break_progress.progress = 0.0;
-                        worker.exhausted = false;
-
-                        return (
-                            worker.to_returning(&mut world.map, assigned_shop_pos),
-                            WorkerActionResult::InProgress,
-                        );
-                    }
-                }
-            }
-
-            Worker::Idle(mut worker) => {
-                worker.progress_break_requirement(delta);
-
-                if worker.requires_break() {
-                    return (
-                        worker.to_taking_break(world, assigned_shop_type),
-                        WorkerActionResult::InProgress,
-                    );
-                }
-
-                return (Worker::Idle(worker), WorkerActionResult::Idle);
-            }
-            Worker::Lost(_) => {
-                //FIXME: wait a couple of secs and try 'returning_action' again...
-                panic!("Pathfinding failed. Worker is lost!");
-            }
+            Worker::Returning(worker) => handle_returning(worker, delta),
+            Worker::Storing(worker) => handle_storing(worker, delta, world, assigned_shop_pos),
+            Worker::Supplying(worker) => handle_supplying(worker, delta, world, assigned_shop_pos),
+            Worker::Gathering(worker) => handle_gathering(worker, delta, world, assigned_shop_pos),
+            Worker::Producing(worker) => handle_producing(worker, delta),
+            Worker::TakingBreak(worker) => handle_taking_break(worker, delta, world, assigned_shop_pos),
+            Worker::Idle(worker) => handle_idle(worker, delta, world, assigned_shop_type),
+            Worker::Lost(worker) => handle_lost(worker, delta, world, assigned_shop_pos),
         }
     }
 }
 
-impl<T> WorkerWithAction<T>
-where
-    T: CanIdle,
-{
-    fn to_idle(self) -> Worker {
-        Worker::Idle(WorkerWithAction::move_with(self, Idle {}))
-    }
-}
+fn handle_lost(
+    mut worker: WorkerWithAction<LostAction>,
+    delta: f32,
+    world: &World,
+    assigned_shop_pos: Pos,
+) -> (Worker, WorkerActionResult) {
+    worker.progress_break_requirement(delta);
+    let retry_result = worker.action_data.0.continue_action(delta);
 
-impl WorkerWithAction<Idle> {
-    fn to_taking_break(
-        mut self,
-        world: &World,
-        assigned_shop: ShopTypeDiscriminants,
-    ) -> Worker {
-        //a special case scenario is when hearth tender takes a break. He won't be able to find
-        //hearth, as it was removed from the world for processing
-        if let ShopTypeDiscriminants::MainHearth = assigned_shop {
-            let pos = self.pos;
-            return Worker::TakingBreak(WorkerWithAction::move_with(
-                self,
-                TakingBreakAction::new(vec![pos], &world.map),
-            ));
+    match retry_result {
+        ActionResult::InProgress => {
+            return (Worker::Lost(worker), WorkerActionResult::InProgress);
         }
-
-        info!("{} is starting a break, current pos {}.", self.name, self.pos);
-        let (_, path) = if let Some(path) = pathfinding_helpers::closest_shop(self.pos, world, |s| s.is_main_hearth()) {
-            path
-        } else {
-            //TODO: if Hearth not accessible - do not became lost
-            //In the future: lower the mood or become starving
-
-            self.break_progress.progress = 0.0;
-            self.exhausted = true;
+        ActionResult::Completed => {
+            info!("{} is lost and trying to find a way", worker.name);
+            if worker.inventory.is_empty() {
+                info!(
+                    "{} has empty inventory and is is trying to transition to returning state.",
+                    worker.name
+                );
+                return (
+                    worker.to_returning(&world.map, assigned_shop_pos),
+                    WorkerActionResult::InProgress,
+                );
+            }
 
             info!(
-                "{} was unable to find the Hearth and is now starving/exhausted!",
-                self.name
+                "{} has non-empty inventory and is trying to transition to storing state.",
+                worker.name
             );
 
-            return self.to_idle();
-        };
+            let (_, path) =
+                if let Some(path) = pathfinding_helpers::closest_shop(worker.pos, world, |s| s.is_main_store()) {
+                    path
+                } else {
+                    return (
+                        Worker::Lost(WorkerWithAction::to_new_action(worker, LostAction::new())),
+                        WorkerActionResult::InProgress,
+                    );
+                };
 
-        Worker::TakingBreak(WorkerWithAction::move_with(
-            self,
-            TakingBreakAction::new(path, &world.map),
-        ))
-    }
-
-    pub fn to_storing(
-        mut self,
-        map: &WorldMap,
-        path: Vec<Pos>,
-        shop_inventory: &mut Inventory,
-    ) -> Worker {
-        info!("{} is storing materials, current pos {}.", self.name, self.pos);
-
-        shop_inventory.transfer_until_full(&mut self.inventory);
-
-        info!("{} now has the follwoing materials {}", self.name, self.inventory);
-        info!("The follwoing materials remain in the shop {}", shop_inventory);
-
-        Worker::Storing(WorkerWithAction::move_with(
-            self,
-            StoringAction(TransitAction::new(path, map)),
-        ))
-    }
-
-    pub fn to_supplying(
-        mut self,
-        path: Vec<Pos>,
-        map: &WorldMap,
-        reservation: InventoryItems,
-    ) -> Worker {
-        info!("{} is supplying materials, current pos {}.", self.name, self.pos);
-
-        info!(
-            "{} is supplying the following materials, which were already reserved: {} {}",
-            self.name, reservation.0, reservation.1
-        );
-        self.inventory.add(&reservation.0, reservation.1);
-        Worker::Supplying(WorkerWithAction {
-            name: self.name,
-            inventory: self.inventory,
-            pos: self.pos,
-            break_progress: self.break_progress,
-            exhausted: self.exhausted,
-            action_data: SupplyingAction(TransitAction::new(path, map)),
-        })
-    }
-
-    pub fn to_gathering(
-        self,
-        path: Vec<Pos>,
-        map: &mut WorldMap,
-    ) -> Worker {
-        info!(
-            "{} is gathering materials at {}, current pos {}.",
-            self.name,
-            path.last().unwrap(),
-            self.pos
-        );
-        Worker::Gathering(WorkerWithAction::move_with(self, GatheringAction::new(path, map)))
-    }
-
-    pub fn to_producing(
-        self,
-        receipe: &Receipe,
-    ) -> Worker {
-        Worker::Producing(WorkerWithAction::move_with(
-            self,
-            ProducingAction(BasicAction::new(receipe.requirement), receipe.clone()),
-        ))
+            (
+                Worker::Storing(WorkerWithAction::to_new_action(
+                    worker,
+                    StoringAction(TransitAction::new(path, &world.map)),
+                )),
+                WorkerActionResult::InProgress,
+            )
+        }
     }
 }
 
-impl<T> WorkerWithAction<T>
-where
-    T: CanReturn,
-{
-    fn to_returning(
-        self,
-        map: &WorldMap,
-        assigned_store_location: Pos,
-    ) -> Worker {
-        let path = if let Some(path) = pathfinding::a_star(map, self.pos, assigned_store_location) {
-            path
-        } else {
-            return Worker::Lost(WorkerWithAction::move_with(self, LostAction()));
-        };
+fn handle_returning(
+    mut worker: WorkerWithAction<ReturningAction>,
+    delta: f32,
+) -> (Worker, WorkerActionResult) {
+    worker.progress_break_requirement(delta);
+    let result = worker.action_data.0.continue_action(delta);
 
-        Worker::Returning(WorkerWithAction::move_with(
-            self,
-            ReturningAction(TransitAction::new(path, map)),
-        ))
+    match result {
+        TransitActionResult::InProgress(pos) => {
+            worker.pos = pos;
+        }
+        TransitActionResult::Completed(pos) => {
+            worker.pos = pos;
+
+            info!("{} has returned to the shop at {}, and is now idle.", worker.name, pos);
+            if !worker.inventory.is_empty() {
+                info!(
+                    "{} has brought the following items to the shop: {}",
+                    worker.name, worker.inventory
+                );
+            }
+
+            let items: Vec<_> = worker.inventory.drain().collect();
+            return (worker.to_idle(), WorkerActionResult::BroughtToShop(items));
+        }
+    }
+
+    return (Worker::Returning(worker), WorkerActionResult::InProgress);
+}
+
+fn handle_storing(
+    mut worker: WorkerWithAction<StoringAction>,
+    delta: f32,
+    world: &mut World,
+    assigned_shop_pos: Pos,
+) -> (Worker, WorkerActionResult) {
+    worker.progress_break_requirement(delta);
+    //what if the store was removed? Idc - invoking shop will receive the list of materials
+    //this worker had. Could maybe reassign them to this worker and they will be returned
+    //to the shop.
+    let result = worker.action_data.0.continue_action(delta);
+
+    match result {
+        TransitActionResult::InProgress(pos) => {
+            worker.pos = pos;
+            return (Worker::Storing(worker), WorkerActionResult::InProgress);
+        }
+        TransitActionResult::Completed(pos) => {
+            worker.pos = pos;
+
+            info!(
+                "{} has brought items {} to store at {} and is now returning.",
+                worker.name, worker.inventory, pos
+            );
+
+            let store = if let Some(store) = world
+                .shops
+                .iter_mut()
+                .find(|s| s.is_main_store() && s.get_non_generic().structure.pos == worker.pos)
+            {
+                store
+            } else {
+                //FIXME: No Store found at a location - look for new one
+                panic!();
+            };
+
+            let items: Vec<_> = worker.inventory.drain().collect();
+
+            store.get_non_generic_mut().output.add_range(items);
+            worker.inventory.clear();
+
+            return (
+                worker.to_returning(&world.map, assigned_shop_pos),
+                WorkerActionResult::InProgress,
+            );
+        }
     }
 }
 
-impl<T> WorkerWithAction<T> {
-    fn move_with<K>(
-        other: WorkerWithAction<K>,
-        action: T,
-    ) -> Self {
-        Self {
-            name: other.name,
-            inventory: other.inventory,
-            pos: other.pos,
-            break_progress: other.break_progress,
-            exhausted: other.exhausted,
-            action_data: action,
+fn handle_supplying(
+    mut worker: WorkerWithAction<SupplyingAction>,
+    delta: f32,
+    world: &mut World,
+    assigned_shop_pos: Pos,
+) -> (Worker, WorkerActionResult) {
+    worker.progress_break_requirement(delta);
+    let result = worker.action_data.0.continue_action(delta);
+
+    match result {
+        TransitActionResult::InProgress(pos) => {
+            worker.pos = pos;
+            return (Worker::Supplying(worker), WorkerActionResult::InProgress);
+        }
+        TransitActionResult::Completed(pos) => {
+            worker.pos = pos;
+
+            info!(
+                "{} has taken reserved items at {} and is now returning.",
+                worker.name, pos
+            );
+            info!("Reserved items: {}", worker.inventory);
+
+            return (
+                worker.to_returning(&world.map, assigned_shop_pos),
+                WorkerActionResult::InProgress,
+            );
         }
     }
+}
 
-    fn progress_break_requirement(
-        &mut self,
-        delta: f32,
-    ) {
-        if self.break_progress.is_completed() {
-            return;
+fn handle_gathering(
+    mut worker: WorkerWithAction<GatheringAction>,
+    delta: f32,
+    world: &mut World,
+    assigned_shop_pos: Pos,
+) -> (Worker, WorkerActionResult) {
+    worker.progress_break_requirement(delta);
+    let result = worker.action_data.continue_action(&mut world.map, delta);
+
+    match result {
+        GatheringActionResult::InProgress(pos) => {
+            worker.pos = pos;
+
+            return (Worker::Gathering(worker), WorkerActionResult::InProgress);
         }
+        GatheringActionResult::Completed(inv) => {
+            worker.inventory.add_range(inv);
 
-        self.break_progress.continue_action(delta);
+            info!(
+                "{} has gathered items at {} and is now returning.",
+                worker.name, worker.pos
+            );
+            info!("Gathered items: {}", worker.inventory);
+
+            return (
+                worker.to_returning(&world.map, assigned_shop_pos),
+                WorkerActionResult::InProgress,
+            );
+        }
+    }
+}
+
+fn handle_producing(
+    mut worker: WorkerWithAction<ProducingAction>,
+    delta: f32,
+) -> (Worker, WorkerActionResult) {
+    worker.progress_break_requirement(delta);
+    let result = worker.action_data.0.continue_action(delta);
+
+    match result {
+        ActionResult::InProgress => {
+            return (Worker::Producing(worker), WorkerActionResult::InProgress);
+        }
+        ActionResult::Completed => {
+            info!("{} has completed production.", worker.name);
+            let receipe = worker.action_data.1.clone();
+
+            return (worker.to_idle(), WorkerActionResult::ProductionComplete(receipe));
+        }
+    }
+}
+
+fn handle_taking_break(
+    mut worker: WorkerWithAction<TakingBreakAction>,
+    delta: f32,
+    world: &mut World,
+    assigned_shop_pos: Pos,
+) -> (Worker, WorkerActionResult) {
+    let result = worker.action_data.continue_action(delta);
+
+    match result {
+        TakingBreakActionResult::InProgress(pos) => {
+            worker.pos = pos;
+
+            return (Worker::TakingBreak(worker), WorkerActionResult::InProgress);
+        }
+        TakingBreakActionResult::Completed => {
+            info!(
+                "{} has finished break at {}, and is now returning.",
+                worker.name, worker.pos
+            );
+            worker.break_progress.progress = 0.0;
+            worker.exhausted = false;
+
+            return (
+                worker.to_returning(&world.map, assigned_shop_pos),
+                WorkerActionResult::InProgress,
+            );
+        }
+    }
+}
+
+fn handle_idle(
+    mut worker: WorkerWithAction<Idle>,
+    delta: f32,
+    world: &World,
+    assigned_shop_type: ShopTypeDiscriminants,
+) -> (Worker, WorkerActionResult) {
+    worker.progress_break_requirement(delta);
+
+    if worker.requires_break() {
+        return (
+            worker.to_taking_break(world, assigned_shop_type),
+            WorkerActionResult::InProgress,
+        );
     }
 
-    fn requires_break(&self) -> bool {
-        self.break_progress.is_completed()
-    }
+    return (Worker::Idle(worker), WorkerActionResult::Idle);
 }
