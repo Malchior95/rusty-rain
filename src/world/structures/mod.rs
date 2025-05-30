@@ -49,6 +49,10 @@ pub struct Structure {
     pub width: u8,
 }
 
+//docs to enum dispatch claim that static dispatch can be up to 10x faster than dynamic dispatch,
+//due to not having to lookup virtual tables. I am noting this down, cause in the beginning I was
+//wondering if it is better to use enums or Box<dyn Trait>
+
 #[derive(EnumDiscriminants, EnumIs)]
 #[strum_discriminants(derive(Display))]
 #[derive(ImplVariantNonGeneric)]
@@ -58,4 +62,19 @@ pub enum ShopType {
     MainStore(Shop<Store>),
     Gatherer(Shop<Gatherer>),
     Producer(Shop<Producer>),
+}
+
+impl ShopType {
+    pub fn process(
+        &mut self,
+        world: &mut World,
+        delta: f32,
+    ) {
+        match self {
+            ShopType::MainHearth(hearth) => hearth.process(world, delta),
+            ShopType::Gatherer(gatherer) => gatherer.process(world, delta),
+            ShopType::Producer(producer) => producer.process(world, delta),
+            _ => {} //currently no update necessary...
+        }
+    }
 }

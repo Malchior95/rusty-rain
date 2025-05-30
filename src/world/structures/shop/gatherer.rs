@@ -46,14 +46,8 @@ impl Shop<Gatherer> {
 
                 WorkerActionResult::Idle => {
                     if self.output.is_full() || self.data.storing_all {
-                        worker = shared::store_command(
-                            worker,
-                            world,
-                            self.structure.pos,
-                            &mut self.output,
-                            &mut self.data.storing_all,
-                            shop_id,
-                        );
+                        worker =
+                            shared::store_command(worker, world, &mut self.output, &mut self.data.storing_all, shop_id);
                     } else {
                         worker = shared::gather_command(worker, world, &self.data.resource_type, shop_id);
                     }

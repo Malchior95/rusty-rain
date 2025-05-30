@@ -46,14 +46,8 @@ impl Shop<Producer> {
                     //TODO: make this a function - too much logic, cannot nicely return early from
                     //match statement
                     if self.output.is_full() || self.data.storing_all {
-                        worker = shared::store_command(
-                            worker,
-                            world,
-                            self.structure.pos,
-                            &mut self.output,
-                            &mut self.data.storing_all,
-                            shop_id,
-                        );
+                        worker =
+                            shared::store_command(worker, world, &mut self.output, &mut self.data.storing_all, shop_id);
                     } else
                     //if receipe requirements met - produce, otherwise, supply
                     if let Some((materials_to_supply, amount)) =
@@ -74,7 +68,7 @@ impl Shop<Producer> {
                             shop_id,
                         );
                     } else {
-                        worker = shared::produce_command(worker, &self.data.receipe, shop_id);
+                        worker = shared::produce_command(worker, self.data.receipe.clone(), shop_id);
                     }
                 }
             }

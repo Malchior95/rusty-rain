@@ -8,7 +8,7 @@ use rusty_rain::{
         structures::builders,
         workers::{
             Worker,
-            worker_with_action::{Idle, LostAction, WorkerWithAction},
+            worker_with_action::{LostAction, WorkerWithAction},
         },
         world_map::{TileType, resources::ResourceType},
     },

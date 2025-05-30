@@ -83,7 +83,6 @@ pub fn supply_command(
 pub fn store_command(
     worker: Worker,
     world: &mut World,
-    shop_pos: Pos,
     shop_output: &mut Inventory,
     storing_in_progress_flag: &mut bool,
     shop_id: &String,
@@ -92,16 +91,15 @@ pub fn store_command(
         //store items
         info!("{} is storing resources. Current inventory: {}", shop_id, shop_output);
 
-        let (_, path) = if let Some(x) = pathfinding_helpers::closest_shop_mut(shop_pos, world, |s| {
-            //TODO: just bring to the store. In the future - maybe consider
-            //bringing to the closest shop that needs materials?
-            if let ShopType::MainStore(_) = s { true } else { false }
-        }) {
-            x
-        } else {
-            info!("{} has no suitable stores nearby.", shop_id);
-            return Worker::Idle(idle_worker); //remain idle
-        };
+        let mut storing_or_idle_worker = idle_worker.try_storing(world);
+        if let Worker::Storing(sw) = &mut storing_or_idle_worker {
+            info!("{} is storing materials, current pos {}.", sw.name, sw.pos);
+
+            shop_output.transfer_until_full(&mut sw.inventory);
+
+            info!("{} now has the follwoing materials {}", sw.name, sw.inventory);
+            info!("The follwoing materials remain in the shop {}", shop_output);
+        }
 
         //once started storing - store everything
         if shop_output.total_items() <= 0.0 {
@@ -109,9 +107,10 @@ pub fn store_command(
         } else {
             *storing_in_progress_flag = true;
         }
-        return idle_worker.to_storing(&world.map, path, shop_output);
+
+        return storing_or_idle_worker;
     }
-    return worker;
+    return worker; //this method has no effect if worker is not idle
 }
 
 pub fn gather_command(
@@ -143,7 +142,7 @@ pub fn gather_command(
 
 pub fn produce_command(
     worker: Worker,
-    receipe: &Receipe,
+    receipe: Receipe,
     shop_id: &String,
 ) -> Worker {
     if let Worker::Idle(idle_worker) = worker {

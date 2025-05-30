@@ -1,14 +1,14 @@
 use impl_variant_non_generic::ImplVariantNonGeneric;
 use log::info;
+use worker_with_action::CanGetLost;
 
 use crate::{
     ai::pathfinding::pathfinding_helpers,
     math::Pos,
     world::{
         World,
-        actions::BasicAction,
         actions::{
-            ActionResult, TransitAction, TransitActionResult,
+            ActionResult, TransitActionResult,
             gathering_action::{GatheringAction, GatheringActionResult},
             taking_break_action::{TakingBreakAction, TakingBreakActionResult},
         },
@@ -48,21 +48,6 @@ pub enum WorkerActionResult {
 
 impl Worker {
     pub const TIME_TO_BREAK: f32 = 120.0;
-
-    pub fn assign<T, K>(
-        shop: &mut Shop<K>,
-        unassigned: WorkerWithAction<T>,
-    ) {
-        //this worker will immediatelly try to find it's shop, maybe first storing it's inventory
-        let worker = Worker::Lost(WorkerWithAction::to_new_action(
-            unassigned,
-            LostAction(BasicAction {
-                requirement: 0.0,
-                progress: 0.0,
-            }),
-        ));
-        shop.workers.push_back(worker);
-    }
 
     pub fn continue_action(
         self,
@@ -105,7 +90,7 @@ fn handle_lost(
                     worker.name
                 );
                 return (
-                    worker.to_returning(&world.map, assigned_shop_pos),
+                    worker.try_returning(&world.map, assigned_shop_pos),
                     WorkerActionResult::InProgress,
                 );
             }
@@ -115,23 +100,7 @@ fn handle_lost(
                 worker.name
             );
 
-            let (_, path) =
-                if let Some(path) = pathfinding_helpers::closest_shop(worker.pos, world, |s| s.is_main_store()) {
-                    path
-                } else {
-                    return (
-                        Worker::Lost(WorkerWithAction::to_new_action(worker, LostAction::new())),
-                        WorkerActionResult::InProgress,
-                    );
-                };
-
-            (
-                Worker::Storing(WorkerWithAction::to_new_action(
-                    worker,
-                    StoringAction(TransitAction::new(path, &world.map)),
-                )),
-                WorkerActionResult::InProgress,
-            )
+            (worker.try_storing(world), WorkerActionResult::InProgress)
         }
     }
 }
@@ -199,26 +168,9 @@ fn handle_storing(
                     "{} arrived at the store, but the store is missing - searching for new store!",
                     worker.name
                 );
-                let (_, path) =
-                    if let Some(sp) = pathfinding_helpers::closest_shop(worker.pos, world, |s| s.is_main_store()) {
-                        sp
-                    } else {
-                        info!(
-                            "{} was looking for another store, but there are no more stores. Becoming lost.",
-                            worker.name
-                        );
-                        return (
-                            Worker::Lost(WorkerWithAction::to_new_action(worker, LostAction::new())),
-                            WorkerActionResult::InProgress,
-                        );
-                    };
-                return (
-                    Worker::Storing(WorkerWithAction::to_new_action(
-                        worker,
-                        StoringAction(TransitAction::new(path, &world.map)),
-                    )),
-                    WorkerActionResult::InProgress,
-                );
+
+                return (worker.to_lost_with_immediate_retry(), WorkerActionResult::InProgress); //being lost will take
+                //care of the items in the inventory
             };
 
             let items: Vec<_> = worker.inventory.drain().collect();
@@ -227,7 +179,7 @@ fn handle_storing(
             worker.inventory.clear();
 
             return (
-                worker.to_returning(&world.map, assigned_shop_pos),
+                worker.try_returning(&world.map, assigned_shop_pos),
                 WorkerActionResult::InProgress,
             );
         }
@@ -258,7 +210,7 @@ fn handle_supplying(
             info!("Reserved items: {}", worker.inventory);
 
             return (
-                worker.to_returning(&world.map, assigned_shop_pos),
+                worker.try_returning(&world.map, assigned_shop_pos),
                 WorkerActionResult::InProgress,
             );
         }
@@ -290,7 +242,7 @@ fn handle_gathering(
             info!("Gathered items: {}", worker.inventory);
 
             return (
-                worker.to_returning(&world.map, assigned_shop_pos),
+                worker.try_returning(&world.map, assigned_shop_pos),
                 WorkerActionResult::InProgress,
             );
         }
@@ -340,7 +292,7 @@ fn handle_taking_break(
             worker.exhausted = false;
 
             return (
-                worker.to_returning(&world.map, assigned_shop_pos),
+                worker.try_returning(&world.map, assigned_shop_pos),
                 WorkerActionResult::InProgress,
             );
         }
@@ -357,7 +309,7 @@ fn handle_idle(
 
     if worker.requires_break() {
         return (
-            worker.to_taking_break(world, assigned_shop_type),
+            worker.try_take_break(world, assigned_shop_type),
             WorkerActionResult::InProgress,
         );
     }

@@ -29,6 +29,8 @@ pub struct WorkerWithAction<T> {
 
 pub trait CanReturn {}
 pub trait CanIdle {}
+pub trait CanStore {}
+pub trait CanGetLost {}
 
 pub struct Idle();
 pub struct InHearth();
@@ -42,12 +44,36 @@ impl CanReturn for SupplyingAction {}
 impl CanReturn for StoringAction {}
 impl CanReturn for GatheringAction {}
 impl CanReturn for TakingBreakAction {}
-impl CanReturn for Idle {}
 impl CanReturn for LostAction {}
 
-impl CanIdle for ReturningAction {}
-impl CanIdle for ProducingAction {}
-impl CanIdle for Idle {} //If was trying to transition to a state, but path not found
+impl CanIdle for ReturningAction {} //returned to the shop
+impl CanIdle for ProducingAction {} //finished production at the shop
+impl CanIdle for Idle {} //Still idle or, If was trying to transition to a state, but path not found
+
+impl CanStore for Idle {}
+impl CanStore for LostAction {} //bring whatever is in the inventory to store before attempting to
+//come back to the shop
+
+impl CanGetLost for LostAction {} //still lost
+impl CanGetLost for StoringAction {} //was trying to return, but got lost
+impl CanGetLost for SupplyingAction {} //was trying to return, but got lost
+impl CanGetLost for GatheringAction {} //was trying to return, but got lost
+impl CanGetLost for TakingBreakAction {} //was trying to return, but got lost
+
+impl<T> WorkerWithAction<T>
+where
+    T: CanGetLost,
+{
+    pub fn to_lost(self) -> Worker {
+        Worker::Lost(WorkerWithAction::to_new_action(self, LostAction::new()))
+    }
+
+    pub fn to_lost_with_immediate_retry(self) -> Worker {
+        let mut worker = WorkerWithAction::to_new_action(self, LostAction::new());
+        worker.break_progress.progress = LostAction::RETRY_DELAY;
+        Worker::Lost(worker)
+    }
+}
 
 impl<T> WorkerWithAction<T>
 where
@@ -66,7 +92,55 @@ impl LostAction {
 }
 
 impl WorkerWithAction<Idle> {
-    pub(super) fn to_taking_break(
+    pub fn try_storing(
+        self,
+        world: &World,
+    ) -> Worker {
+        let (_, path) = if let Some(path) = pathfinding_helpers::closest_shop(self.pos, world, |s| s.is_main_store()) {
+            path
+        } else {
+            return self.to_idle();
+        };
+
+        self.to_storing(&world.map, path)
+    }
+}
+
+impl WorkerWithAction<LostAction> {
+    pub(super) fn try_storing(
+        self,
+        world: &World,
+    ) -> Worker {
+        let (_, path) = if let Some(path) = pathfinding_helpers::closest_shop(self.pos, world, |s| s.is_main_store()) {
+            path
+        } else {
+            return self.to_lost();
+        };
+
+        self.to_storing(&world.map, path)
+    }
+}
+
+impl<T> WorkerWithAction<T>
+where
+    T: CanStore,
+{
+    /// If Idle worker cannot transition to storing, they should remain idle. If lost, they
+    /// should remain lost
+    fn to_storing(
+        self,
+        map: &WorldMap,
+        path: Vec<Pos>,
+    ) -> Worker {
+        Worker::Storing(WorkerWithAction::to_new_action(
+            self,
+            StoringAction(TransitAction::new(path, map)),
+        ))
+    }
+}
+
+impl WorkerWithAction<Idle> {
+    pub(super) fn try_take_break(
         mut self,
         world: &World,
         assigned_shop: ShopTypeDiscriminants,
@@ -106,25 +180,6 @@ impl WorkerWithAction<Idle> {
         ))
     }
 
-    pub fn to_storing(
-        mut self,
-        map: &WorldMap,
-        path: Vec<Pos>,
-        shop_inventory: &mut Inventory,
-    ) -> Worker {
-        info!("{} is storing materials, current pos {}.", self.name, self.pos);
-
-        shop_inventory.transfer_until_full(&mut self.inventory);
-
-        info!("{} now has the follwoing materials {}", self.name, self.inventory);
-        info!("The follwoing materials remain in the shop {}", shop_inventory);
-
-        Worker::Storing(WorkerWithAction::to_new_action(
-            self,
-            StoringAction(TransitAction::new(path, map)),
-        ))
-    }
-
     pub fn to_supplying(
         mut self,
         path: Vec<Pos>,
@@ -138,14 +193,10 @@ impl WorkerWithAction<Idle> {
             self.name, reservation.0, reservation.1
         );
         self.inventory.add(&reservation.0, reservation.1);
-        Worker::Supplying(WorkerWithAction {
-            name: self.name,
-            inventory: self.inventory,
-            pos: self.pos,
-            break_progress: self.break_progress,
-            exhausted: self.exhausted,
-            action_data: SupplyingAction(TransitAction::new(path, map)),
-        })
+        Worker::Supplying(WorkerWithAction::to_new_action(
+            self,
+            SupplyingAction(TransitAction::new(path, map)),
+        ))
     }
 
     pub fn to_gathering(
@@ -164,11 +215,11 @@ impl WorkerWithAction<Idle> {
 
     pub fn to_producing(
         self,
-        receipe: &Receipe,
+        receipe: Receipe,
     ) -> Worker {
         Worker::Producing(WorkerWithAction::to_new_action(
             self,
-            ProducingAction(BasicAction::new(receipe.requirement), receipe.clone()),
+            ProducingAction(BasicAction::new(receipe.requirement), receipe),
         ))
     }
 }
@@ -177,7 +228,7 @@ impl<T> WorkerWithAction<T>
 where
     T: CanReturn,
 {
-    pub(super) fn to_returning(
+    pub(super) fn try_returning(
         self,
         map: &WorldMap,
         assigned_shop_pos: Pos,
@@ -197,7 +248,7 @@ where
 }
 
 impl<T> WorkerWithAction<T> {
-    pub(super) fn to_new_action<K>(
+    fn to_new_action<K>(
         other: WorkerWithAction<K>,
         action: T,
     ) -> Self {
