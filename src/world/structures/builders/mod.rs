@@ -144,6 +144,7 @@ pub fn build_hearth<'a>(
         },
         Hearth::MAX_WORKERS,
         Hearth {
+            unassigned_workers: LinkedList::new(),
             action: HearthAction::Idle,
             inventory: Inventory::from_iter([(InventoryItem::Wood, 20.0)]),
         },

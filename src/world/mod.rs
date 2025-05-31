@@ -1,6 +1,6 @@
 use std::collections::LinkedList;
 
-use structures::ShopType;
+use structures::{ShopType, build_zone::BuildZone};
 use workers::Worker;
 use world_map::WorldMap;
 
@@ -16,7 +16,7 @@ pub mod world_map;
 pub struct World {
     pub map: WorldMap,
     pub shops: LinkedList<ShopType>,
-    pub unassigned_workers: LinkedList<Worker>,
+    pub build_zones: LinkedList<BuildZone>,
     pub frame_number: usize,
 }
 
@@ -41,5 +41,34 @@ impl World {
         }
 
         self.frame_number += 1;
+    }
+
+    pub fn get_all_unassigned_workers(&self) -> Vec<&Worker> {
+        let mut ret = Vec::new();
+        for shop in &self.shops {
+            if let ShopType::MainHearth(hearth) = shop {
+                for worker in &hearth.data.unassigned_workers {
+                    ret.push(worker);
+                }
+            }
+        }
+        ret
+    }
+
+    pub fn get_all_build_zones(&self) -> Vec<&BuildZone> {
+        let mut ret = Vec::new();
+        for worker in &self.get_all_unassigned_workers() {
+            if let Worker::Building(worker) = worker {
+                if let Some(bz) = &worker.action_data.build_zone {
+                    ret.push(bz);
+                }
+            }
+        }
+
+        for bz in &self.build_zones {
+            ret.push(bz);
+        }
+
+        ret
     }
 }

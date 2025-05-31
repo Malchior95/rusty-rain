@@ -5,7 +5,7 @@ use crate::world::{
     inventory::{Inventory, InventoryItem, InventoryItems},
     receipes::Receipe,
     structures::{Shop, ShopTypeDiscriminants},
-    workers::WorkerActionResult,
+    workers::worker::WorkerActionResult,
 };
 
 use super::shared;

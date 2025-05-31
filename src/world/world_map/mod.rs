@@ -24,8 +24,10 @@ pub enum TileType {
     Empty,
     Road,
     Structure(ShopTypeDiscriminants),
+    //TODO: I like the approach with build_zones - maybe do the same here, but rather than linked
+    //list use HashMap<Pos, (ResourceType, ResourceCharge)>???
     Resource(ResourceType, ResourceCharge, bool),
-    //Tree(ResourceCharge, bool),
+    BuildZone(ShopTypeDiscriminants),
 }
 
 impl PartialEq for TileType {
@@ -69,7 +71,6 @@ impl WorldMap {
     ) where
         F: FnMut() -> TileType,
     {
-        //TODO: cloning occurs here. Can I disable cloning and create new items? How to do?
         for h in 0..str.height {
             for w in 0..str.width {
                 self.map[str.pos.y + h as usize][str.pos.x + w as usize] = tile_type_factory();
@@ -172,6 +173,7 @@ impl TileType {
                 ShopTypeDiscriminants::MainStore => "󰾁 ",
                 ShopTypeDiscriminants::Producer => "󰈏 ",
             },
+            TileType::BuildZone(_) => "󰡢 ",
             //TileType::Tree(_, _) => " ",
         }
     }
@@ -182,7 +184,7 @@ impl TileType {
             TileType::Resource(_, _, _) => 2.0,
             TileType::Road => 0.7,
             TileType::Structure(_) => 1.0, //this is the cost of entering the building...
-                                           //TileType::Tree(_, _) => 10.0,
+            TileType::BuildZone(_) => 2.0,
         }
     }
 
@@ -195,7 +197,7 @@ impl TileType {
             },
             TileType::Road => true,
             TileType::Structure(_) => false,
-            //TileType::Tree(_, _) => false,
+            TileType::BuildZone(_) => true,
         }
     }
 

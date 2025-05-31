@@ -49,7 +49,7 @@ pub fn new_test_world(
     World {
         map,
         shops: LinkedList::new(),
-        unassigned_workers: LinkedList::new(),
         frame_number: 0,
+        build_zones: LinkedList::new(),
     }
 }

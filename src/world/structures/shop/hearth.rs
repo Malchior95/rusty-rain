@@ -1,3 +1,5 @@
+use std::collections::LinkedList;
+
 use log::info;
 
 use crate::world::{
@@ -5,7 +7,7 @@ use crate::world::{
     actions::{ActionResult, BasicAction},
     inventory::{Inventory, InventoryItem},
     structures::{Shop, ShopTypeDiscriminants},
-    workers::WorkerActionResult,
+    workers::{Worker, worker::WorkerActionResult},
 };
 
 use super::shared;
@@ -13,7 +15,8 @@ use super::shared;
 pub struct Hearth {
     pub action: HearthAction,
     pub inventory: Inventory, //regular output can be taken from. inventory is private and treated
-                              //as input for processing
+    //as input for processing
+    pub unassigned_workers: LinkedList<Worker>,
 }
 
 pub enum HearthAction {
@@ -41,61 +44,69 @@ impl Shop<Hearth> {
         world: &mut World,
         delta: f32,
     ) {
-        self.process_worker_fuel_haul(world, delta);
+        for _ in 0..self.workers.len() {
+            let mut worker = self.workers.pop_front().unwrap();
+            worker = self.process_worker(worker, world, delta);
+            self.workers.push_back(worker);
+        }
 
         let maybe_new_action = match &mut self.data.action {
             HearthAction::Burning(burning) => continue_burning(burning, delta),
             HearthAction::Idle => process_idle(&mut self.data.inventory, !self.workers.is_empty()),
         };
 
+        for _ in 0..self.data.unassigned_workers.len() {
+            let mut worker = self.data.unassigned_workers.pop_front().unwrap();
+            worker = worker.process_unassigned_worker(self.structure.pos, world, delta);
+
+            self.data.unassigned_workers.push_back(worker);
+        }
+
         if let Some(new_action) = maybe_new_action {
             self.data.action = new_action;
         }
     }
 
-    pub fn process_worker_fuel_haul(
+    pub fn process_worker(
         &mut self,
+        worker: Worker,
         world: &mut World,
         delta: f32,
-    ) {
+    ) -> Worker {
         let shop_id = &"Hearth".to_string();
-        for _ in 0..self.workers.len() {
-            let worker = self.workers.pop_front().unwrap();
+        let (mut worker, result) =
+            worker.continue_action(self.structure.pos, ShopTypeDiscriminants::MainHearth, delta, world);
 
-            let (mut worker, result) =
-                worker.continue_action(self.structure.pos, ShopTypeDiscriminants::MainHearth, delta, world);
+        match result {
+            WorkerActionResult::InProgress => {
+                //continue action
+            }
 
-            match result {
-                WorkerActionResult::InProgress => {
-                    //continue action
-                }
+            WorkerActionResult::ProductionComplete(_) => {
+                unreachable!("Hearth will never produce.");
+            }
 
-                WorkerActionResult::ProductionComplete(_) => {
-                    unreachable!("Hearth will never produce.");
-                }
+            WorkerActionResult::BroughtToShop(inventory) => {
+                shared::handle_supply_complete(inventory, &mut self.data.inventory, shop_id);
+            }
 
-                WorkerActionResult::BroughtToShop(inventory) => {
-                    shared::handle_supply_complete(inventory, &mut self.data.inventory, shop_id);
-                }
-
-                WorkerActionResult::Idle => {
-                    //TODO: to function so that I can return early nicely
-                    if self.data.inventory.get(&InventoryItem::Wood) > Hearth::MATERIAL_SUPPLYING_THRESHOLD {
-                        //no need to fetch fuel - stock full
-                    } else {
-                        worker = shared::supply_command(
-                            worker,
-                            self.structure.pos,
-                            world,
-                            Hearth::MIN_MATERIALS_TO_CONSIDER_SUPPLYING,
-                            InventoryItem::Wood,
-                            shop_id,
-                        );
-                    }
+            WorkerActionResult::Idle => {
+                //TODO: to function so that I can return early nicely
+                if self.data.inventory.get(&InventoryItem::Wood) > Hearth::MATERIAL_SUPPLYING_THRESHOLD {
+                    //no need to fetch fuel - stock full
+                } else {
+                    worker = shared::supply_command(
+                        worker,
+                        self.structure.pos,
+                        world,
+                        Hearth::MIN_MATERIALS_TO_CONSIDER_SUPPLYING,
+                        InventoryItem::Wood,
+                        shop_id,
+                    );
                 }
             }
-            self.workers.push_back(worker);
         }
+        worker
     }
 }
 

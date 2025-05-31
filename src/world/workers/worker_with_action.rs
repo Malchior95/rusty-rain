@@ -4,18 +4,23 @@ use crate::{
     world::{
         World,
         actions::{
-            BasicAction, TransitAction, gathering_action::GatheringAction, taking_break_action::TakingBreakAction,
+            BasicAction, TransitAction, building_action::BuildingAction, gathering_action::GatheringAction,
+            taking_break_action::TakingBreakAction,
         },
         inventory::{Inventory, InventoryItems},
         receipes::Receipe,
-        structures::ShopTypeDiscriminants,
+        structures::{ShopTypeDiscriminants, build_zone::BuildZone},
+        workers::SupplyingAction,
         world_map::WorldMap,
     },
 };
 use impl_variant_non_generic::IntoNonGeneric;
 use log::info;
 
-use super::Worker;
+use super::{
+    CanGetLost, CanIdle, CanReturn, CanStore, Idle, LostAction, ProducingAction, ReturningAction, StoringAction,
+    SupplyingBuildZoneAction, Worker,
+};
 
 #[derive(IntoNonGeneric)]
 pub struct WorkerWithAction<T> {
@@ -26,39 +31,6 @@ pub struct WorkerWithAction<T> {
     pub exhausted: bool,
     pub action_data: T,
 }
-
-pub trait CanReturn {}
-pub trait CanIdle {}
-pub trait CanStore {}
-pub trait CanGetLost {}
-
-pub struct Idle();
-pub struct InHearth();
-pub struct LostAction(pub BasicAction);
-pub struct SupplyingAction(pub TransitAction);
-pub struct StoringAction(pub TransitAction);
-pub struct ReturningAction(pub TransitAction);
-pub struct ProducingAction(pub BasicAction, pub Receipe);
-
-impl CanReturn for SupplyingAction {}
-impl CanReturn for StoringAction {}
-impl CanReturn for GatheringAction {}
-impl CanReturn for TakingBreakAction {}
-impl CanReturn for LostAction {}
-
-impl CanIdle for ReturningAction {} //returned to the shop
-impl CanIdle for ProducingAction {} //finished production at the shop
-impl CanIdle for Idle {} //Still idle or, If was trying to transition to a state, but path not found
-
-impl CanStore for Idle {}
-impl CanStore for LostAction {} //bring whatever is in the inventory to store before attempting to
-//come back to the shop
-
-impl CanGetLost for LostAction {} //still lost
-impl CanGetLost for StoringAction {} //was trying to return, but got lost
-impl CanGetLost for SupplyingAction {} //was trying to return, but got lost
-impl CanGetLost for GatheringAction {} //was trying to return, but got lost
-impl CanGetLost for TakingBreakAction {} //was trying to return, but got lost
 
 impl<T> WorkerWithAction<T>
 where
@@ -81,6 +53,20 @@ where
 {
     pub(super) fn to_idle(self) -> Worker {
         Worker::Idle(WorkerWithAction::to_new_action(self, Idle {}))
+    }
+
+    pub(super) fn to_idle_with_action_returned(self) -> (Worker, T) {
+        (
+            Worker::Idle(WorkerWithAction::<Idle> {
+                name: self.name,
+                inventory: self.inventory,
+                pos: self.pos,
+                break_progress: self.break_progress,
+                exhausted: self.exhausted,
+                action_data: Idle {},
+            }),
+            self.action_data,
+        )
     }
 }
 
@@ -222,6 +208,30 @@ impl WorkerWithAction<Idle> {
             ProducingAction(BasicAction::new(receipe.requirement), receipe),
         ))
     }
+
+    pub fn to_building(
+        self,
+        map: &WorldMap,
+        path: Vec<Pos>,
+        build_zone: BuildZone,
+    ) -> Worker {
+        Worker::Building(WorkerWithAction::to_new_action(
+            self,
+            BuildingAction::new(path, map, build_zone),
+        ))
+    }
+
+    pub fn to_supplying_build_zone(
+        self,
+        world: &mut World,
+        path: Vec<Pos>,
+        build_zone: BuildZone,
+    ) -> Worker {
+        Worker::SupplyingBuildZone(WorkerWithAction::to_new_action(
+            self,
+            SupplyingBuildZoneAction(TransitAction::new(path, &world.map), build_zone),
+        ))
+    }
 }
 
 impl<T> WorkerWithAction<T>
@@ -244,6 +254,41 @@ where
             self,
             ReturningAction(TransitAction::new(path, map)),
         ))
+    }
+
+    pub(super) fn try_returning_with_action_returned(
+        self,
+        map: &WorldMap,
+        assigned_shop_pos: Pos,
+    ) -> (Worker, T) {
+        let path = if let Some(path) = pathfinding::a_star(map, self.pos, assigned_shop_pos) {
+            path
+        } else {
+            info!("{} was not able to find a way to the shop!", self.name);
+            return (
+                Worker::Lost(WorkerWithAction::<LostAction> {
+                    name: self.name,
+                    inventory: self.inventory,
+                    pos: self.pos,
+                    break_progress: self.break_progress,
+                    exhausted: self.exhausted,
+                    action_data: LostAction::new(),
+                }),
+                self.action_data,
+            );
+        };
+
+        (
+            Worker::Returning(WorkerWithAction::<ReturningAction> {
+                name: self.name,
+                inventory: self.inventory,
+                pos: self.pos,
+                break_progress: self.break_progress,
+                exhausted: self.exhausted,
+                action_data: ReturningAction(TransitAction::new(path, map)),
+            }),
+            self.action_data,
+        )
     }
 }
 

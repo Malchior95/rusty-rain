@@ -6,10 +6,7 @@ use rusty_rain::{
         actions::BasicAction,
         inventory::{Inventory, InventoryItem},
         structures::builders,
-        workers::{
-            Worker,
-            worker_with_action::{LostAction, WorkerWithAction},
-        },
+        workers::{LostAction, Worker, worker_with_action::WorkerWithAction},
         world_map::{TileType, resources::ResourceType},
     },
 };

@@ -8,7 +8,6 @@ use crate::{
         World,
         inventory::{Inventory, InventoryItem, InventoryItems},
         receipes::Receipe,
-        structures::ShopType,
         workers::Worker,
         world_map::{TileType, resources::ResourceType},
     },
@@ -52,12 +51,15 @@ pub fn supply_command(
         }) {
             x
         } else {
-            info!("{} has no suitable stores with wood nearby.", shop_id);
+            info!(
+                "{} has no suitable stores with {} nearby.",
+                shop_id, materials_to_supply
+            );
             return Worker::Idle(idle_worker); //remain idle
         };
 
-        let stored_wood = closest_shop.get_non_generic().output.get(&materials_to_supply);
-        let to_take = f32::min(stored_wood, idle_worker.inventory.limit);
+        let stored_materials = closest_shop.get_non_generic().output.get(&materials_to_supply);
+        let to_take = f32::min(stored_materials, idle_worker.inventory.limit);
 
         closest_shop
             .get_non_generic_mut()

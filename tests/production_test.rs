@@ -5,7 +5,7 @@ use rusty_rain::{
         actions::BasicAction,
         inventory::{Inventory, InventoryItem},
         structures::builders,
-        workers::{Worker, worker_with_action::Idle, worker_with_action::WorkerWithAction},
+        workers::{Idle, Worker, worker_with_action::WorkerWithAction},
     },
 };
 use std::io::Write;

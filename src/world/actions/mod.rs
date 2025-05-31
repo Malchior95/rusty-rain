@@ -2,6 +2,7 @@ use crate::math::Pos;
 
 use super::world_map::WorldMap;
 
+pub mod building_action;
 pub mod gathering_action;
 pub mod taking_break_action;
 

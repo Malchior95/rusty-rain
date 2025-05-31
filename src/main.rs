@@ -1,6 +1,7 @@
 use std::io::Write;
 use std::{collections::LinkedList, sync::atomic::Ordering};
 
+use rusty_rain::world::workers::Idle;
 use rusty_rain::{
     FRAME_NUM,
     math::Pos,
@@ -9,7 +10,7 @@ use rusty_rain::{
         actions::BasicAction,
         inventory::{Inventory, InventoryItem},
         structures::builders,
-        workers::{Worker, worker_with_action::Idle, worker_with_action::WorkerWithAction},
+        workers::{Worker, worker_with_action::WorkerWithAction},
         world_map::{TileType, WorldMap, resources::ResourceType},
     },
 };
@@ -76,8 +77,8 @@ pub fn new_test_world(
     World {
         map,
         shops: LinkedList::new(),
-        unassigned_workers: LinkedList::new(),
         frame_number: 0,
+        build_zones: LinkedList::new(),
     }
 }
 

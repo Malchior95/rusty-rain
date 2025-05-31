@@ -35,6 +35,12 @@ impl GatheringAction {
 
         if let TileType::Resource(_, _, being_cut) = resource {
             *being_cut = true;
+        } else {
+            //FIXME:
+            panic!("Path to gathering resource does not have a resource at the end.");
+            //TODO: consider doing what I did for BuildZones - keep a separate list of them and
+            //then hand to the action for a full ownership. You will never not find a resource if
+            //you have it in your hand!
         }
 
         Self {
@@ -55,10 +61,12 @@ impl GatheringAction {
                 match result {
                     TransitActionResult::InProgress(pos) => self.pos = pos,
                     TransitActionResult::Completed(pos) => {
+                        //TODO: what should be the gathering time??
                         self.state = GatheringActionInternalState::Gathering(BasicAction::new(10.0));
                         self.pos = pos;
 
                         //arrived at the destination - check if resource still there :P
+                        //TODO: proposition above solves this!
 
                         let resource = map.get(&self.pos);
                         if let TileType::Resource(_, _, _) = resource {

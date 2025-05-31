@@ -1,7 +1,7 @@
 use crate::world::{
     World,
     structures::{Shop, ShopTypeDiscriminants},
-    workers::WorkerActionResult,
+    workers::worker::WorkerActionResult,
     world_map::resources::ResourceType,
 };
 
