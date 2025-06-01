@@ -215,6 +215,12 @@ impl WorkerWithAction<Idle> {
         path: Vec<Pos>,
         build_zone: BuildZone,
     ) -> Worker {
+        info!(
+            "{} is building build zone at {}!",
+            self.name,
+            build_zone.shop_type.get_non_generic().structure.pos
+        );
+
         Worker::Building(WorkerWithAction::to_new_action(
             self,
             BuildingAction::new(path, map, build_zone),
@@ -227,6 +233,11 @@ impl WorkerWithAction<Idle> {
         path: Vec<Pos>,
         build_zone: BuildZone,
     ) -> Worker {
+        info!(
+            "{} is supplying build zone at {}!",
+            self.name,
+            build_zone.shop_type.get_non_generic().structure.pos
+        );
         Worker::SupplyingBuildZone(WorkerWithAction::to_new_action(
             self,
             SupplyingBuildZoneAction(TransitAction::new(path, &world.map), build_zone),

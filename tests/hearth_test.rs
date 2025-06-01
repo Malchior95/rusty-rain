@@ -31,8 +31,7 @@ pub fn test(mut world: World) {
         seconds += DELTA;
     }
 
-    let hs = world.get_hearths();
-    let hearth = hs.first().unwrap();
+    let hearth = world.get_hearths().nth(0).unwrap();
     let tender = hearth.workers.front().unwrap();
     let b = tender.get_non_generic().break_progress;
 

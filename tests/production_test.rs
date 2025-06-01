@@ -32,8 +32,7 @@ pub fn test(mut world: World) {
         seconds += DELTA;
     }
 
-    let stores = world.get_stores();
-    let store = stores.first().unwrap();
+    let store = world.get_stores().nth(0).unwrap();
 
     //by the end of this test, some wood should be taken from the store, some planks produced and
     //brought to the store

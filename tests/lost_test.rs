@@ -34,8 +34,7 @@ pub fn test(mut world: World) {
     }
 
     {
-        let hs = world.get_hearths();
-        let hearth = hs.first().unwrap();
+        let hearth = world.get_hearths().nth(0).unwrap();
         let tender = hearth.workers.front().unwrap();
         let b = tender.get_non_generic().break_progress;
         info!("{} break progress", b.progress);
@@ -59,8 +58,7 @@ pub fn test(mut world: World) {
     }
 
     {
-        let hs = world.get_hearths();
-        let hearth = hs.first().unwrap();
+        let hearth = world.get_hearths().nth(0).unwrap();
         let tender = hearth.workers.front().unwrap();
         let b = tender.get_non_generic().break_progress;
         info!("{} break progress", b.progress);

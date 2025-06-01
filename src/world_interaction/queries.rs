@@ -28,17 +28,15 @@ impl World {
             .collect()
     }
 
-    pub fn get_hearths(&self) -> Vec<&Shop<Hearth>> {
+    pub fn get_hearths(&self) -> impl Iterator<Item = &Shop<Hearth>> {
         self.shops
             .iter()
             .filter_map(|s| if let ShopType::MainHearth(h) = s { Some(h) } else { None })
-            .collect()
     }
 
-    pub fn get_stores(&self) -> Vec<&Shop<Store>> {
+    pub fn get_stores(&self) -> impl Iterator<Item = &Shop<Store>> {
         self.shops
             .iter()
             .filter_map(|s| if let ShopType::MainStore(h) = s { Some(h) } else { None })
-            .collect()
     }
 }

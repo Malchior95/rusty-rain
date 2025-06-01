@@ -1,3 +1,4 @@
+pub mod build_supplying_test;
 pub mod gathering_test;
 pub mod hearth_test;
 pub mod helpers;
@@ -30,4 +31,11 @@ pub fn gathering() {
 pub fn worker_lost() {
     let world = helpers::new_test_world(16, 16);
     lost_test::test(world);
+}
+
+#[cfg(test)]
+#[test]
+pub fn build_supply() {
+    let world = helpers::new_test_world(16, 16);
+    build_supplying_test::test(world);
 }

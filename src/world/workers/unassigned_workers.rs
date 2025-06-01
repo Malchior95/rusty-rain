@@ -24,7 +24,11 @@ impl Worker {
             WorkerActionResult::InProgress => {
                 //action in progress
             }
-            WorkerActionResult::BroughtToShop(_) => unreachable!("Unassigned workers will never bring items."),
+            WorkerActionResult::BroughtToShop(items) => {
+                assert!(items.is_empty());
+                //INFO: Unassigned workers will never bring items to shop, altough they will
+                //"return", therefore invoking this result
+            }
             WorkerActionResult::ProductionComplete(_) => unreachable!("Unassigned workers will never produce."),
             WorkerActionResult::Idle => {
                 if let Worker::Idle(idle_worker) = worker {
@@ -46,8 +50,11 @@ fn schedule_new_work(
     //popping it and shoving to the back. The next worker (or the same, if there is only 1), will
     //have a chance to handle the next build_zone on this or next tick.
 
-    //I am carelessly unwrapping, because I checked previously that the list is non-empty
-    let build_zone = world.build_zones.pop_front().unwrap();
+    let build_zone = if let Some(bz) = world.build_zones.pop_front() {
+        bz
+    } else {
+        return Worker::Idle(worker); //no build zones
+    };
 
     if build_zone.is_delivery_complete() {
         let maybe_path = pathfinding::a_star(
