@@ -70,5 +70,5 @@ pub fn configure_world(world: &mut World) {
         store.output.add(&InventoryItem::Wood, 40.0);
     }
 
-    commands::build_lumbermill(world, Pos::new(4, 8), BuildMethod::SpawnExisting);
+    commands::build_lumbermill(world, Pos::new(4, 8), BuildMethod::SpawnBuildZone);
 }

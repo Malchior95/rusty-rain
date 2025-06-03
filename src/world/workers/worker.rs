@@ -60,6 +60,7 @@ fn handle_supplying_build_zone(
     world: &mut World,
     assigned_shop_pos: Pos,
 ) -> (Worker, WorkerActionResult) {
+    worker.progress_break_requirement(delta);
     let result = worker.action_data.0.continue_action(delta);
 
     match result {
@@ -87,6 +88,7 @@ fn handle_building(
     world: &mut World,
     assigned_shop_pos: Pos,
 ) -> (Worker, WorkerActionResult) {
+    worker.progress_break_requirement(delta);
     let result = worker.action_data.continue_action(world, delta);
 
     match result {
