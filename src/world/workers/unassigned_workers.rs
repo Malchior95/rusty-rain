@@ -1,5 +1,3 @@
-use log::info;
-
 use crate::ai::pathfinding::{self, pathfinding_helpers};
 use crate::config::inventory::InventoryItems;
 use crate::math::Pos;

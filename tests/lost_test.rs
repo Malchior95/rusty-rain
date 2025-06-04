@@ -38,7 +38,7 @@ pub fn test(mut world: World) {
     {
         let hearth = world.get_hearths().nth(0).unwrap();
         let tender = hearth.0.workers.front().unwrap();
-        let b = tender.get_non_generic().break_progress;
+        let b = tender.break_progress();
         info!("{} break progress", b.progress);
 
         //by the end of this test, woodcutter should have taken a break, and a number of fuel should
@@ -46,7 +46,7 @@ pub fn test(mut world: World) {
         assert!(b.progress > Worker::TIME_TO_BREAK);
         //TODO: currently worker will never become exhausted, because they will never try to find a
         //hearth (and fail). Should they become exhausted when lost?
-        assert!(!tender.get_non_generic().exhausted);
+        assert!(!tender.exhausted());
         assert!(matches!(tender, Worker::Lost(_)));
 
         let tile = world.map.get_mut(&Pos::new(13, 12));
@@ -62,7 +62,7 @@ pub fn test(mut world: World) {
     {
         let hearth = world.get_hearths().nth(0).unwrap();
         let tender = hearth.0.workers.front().unwrap();
-        let b = tender.get_non_generic().break_progress;
+        let b = tender.break_progress();
         info!("{} break progress", b.progress);
 
         //by the end of this test, woodcutter should have taken a break, and a number of fuel should

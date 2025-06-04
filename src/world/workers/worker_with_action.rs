@@ -14,7 +14,6 @@ use crate::{
         world_map::WorldMap,
     },
 };
-use impl_variant_non_generic::IntoNonGeneric;
 use log::info;
 
 use super::{
@@ -22,7 +21,6 @@ use super::{
     SupplyingBuildZoneAction, Worker,
 };
 
-#[derive(IntoNonGeneric)]
 pub struct WorkerWithAction<T> {
     pub name: String,
     pub inventory: Inventory,

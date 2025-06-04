@@ -23,7 +23,7 @@ pub struct ProducerBehaviour {
     pub internal_state: InternalProducerState,
 }
 
-enum InternalProducerState {
+pub enum InternalProducerState {
     Supplying,
     Producing,
     Storing,

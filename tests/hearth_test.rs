@@ -35,12 +35,12 @@ pub fn test(mut world: World) {
 
     let hearth = world.get_hearths().nth(0).unwrap();
     let tender = hearth.0.workers.front().unwrap();
-    let b = tender.get_non_generic().break_progress;
+    let b = tender.break_progress();
 
     //by the end of this test, woodcutter should have taken a break, and a number of fuel should
     //have been burned in the hearth
     assert!(b.progress < 3.0 * 60.0);
-    assert!(!tender.get_non_generic().exhausted);
+    assert!(!tender.exhausted());
     assert!(hearth.1.input.total_items() < 15.0);
 }
 

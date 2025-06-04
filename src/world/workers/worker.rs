@@ -71,7 +71,7 @@ fn handle_supplying_build_zone(
             let (mut worker, mut supplying_action) =
                 worker.try_returning_with_action_returned(&world.map, assigned_shop_pos);
 
-            let items = worker.get_non_generic_mut().inventory.drain();
+            let items = worker.inventory_mut().drain();
             supplying_action.1.materials_delivered.add_range(items);
             world.build_zones.push_back(supplying_action.1);
 
