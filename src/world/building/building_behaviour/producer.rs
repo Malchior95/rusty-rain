@@ -9,9 +9,9 @@ use crate::{
     },
     world::{
         World,
+        building::BuildingBase,
         inventory::Inventory,
-        structures::BuildingBase,
-        workers::{Worker, worker_state_transitions::WorkerActionResult},
+        worker::{Worker, worker_state_transitions::WorkerActionResult},
     },
 };
 

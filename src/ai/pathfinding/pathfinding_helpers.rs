@@ -3,7 +3,7 @@ use std::collections::LinkedList;
 use crate::{
     ai::pathfinding,
     math::Pos,
-    world::{World, structures::Building, world_map::WorldMap},
+    world::{World, building::Building, world_map::WorldMap},
 };
 
 pub fn closest_shop_mut<'a, F>(

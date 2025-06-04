@@ -8,9 +8,9 @@ use crate::{
             BasicAction, TransitAction, building_action::BuildingAction, gathering_action::GatheringAction,
             taking_break_action::TakingBreakAction,
         },
+        building::build_zone::BuildZone,
         inventory::Inventory,
-        structures::build_zone::BuildZone,
-        workers::SupplyingAction,
+        worker::SupplyingAction,
         world_map::WorldMap,
     },
 };

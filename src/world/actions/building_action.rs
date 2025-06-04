@@ -4,7 +4,7 @@ use crate::{
     math::Pos,
     world::{
         World,
-        structures::build_zone::BuildZone,
+        building::build_zone::BuildZone,
         world_map::{TileType, WorldMap},
     },
 };

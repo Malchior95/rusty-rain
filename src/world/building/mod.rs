@@ -1,14 +1,14 @@
 pub mod build_zone;
-pub mod shop;
+pub mod building_behaviour;
 
 use std::collections::LinkedList;
 
-use shop::{gatherer::GathererBehaviour, hearth::HearthBehaviour, producer::ProducerBehaviour};
+use building_behaviour::{gatherer::GathererBehaviour, hearth::HearthBehaviour, producer::ProducerBehaviour};
 use strum_macros::{Display, EnumDiscriminants, EnumIs};
 
 use crate::{config::buildings::Buildings, math::Pos};
 
-use super::{World, inventory::Inventory, workers::Worker};
+use super::{World, inventory::Inventory, worker::Worker};
 
 pub struct BuildingBase {
     pub pos: Pos,

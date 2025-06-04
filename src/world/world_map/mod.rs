@@ -5,7 +5,7 @@ use strum_macros::{Display, EnumDiscriminants};
 
 use crate::{config::buildings::Buildings, math::Pos};
 
-use super::structures::BuildingBehaviourDiscriminants;
+use super::building::BuildingBehaviourDiscriminants;
 
 pub mod resources;
 

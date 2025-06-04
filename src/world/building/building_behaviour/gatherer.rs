@@ -5,8 +5,8 @@ use crate::{
     config::inventory::InventoryItems,
     world::{
         World,
-        structures::BuildingBase,
-        workers::{Worker, worker_state_transitions::WorkerActionResult},
+        building::BuildingBase,
+        worker::{Worker, worker_state_transitions::WorkerActionResult},
         world_map::TileType,
     },
 };

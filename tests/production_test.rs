@@ -5,9 +5,9 @@ use rusty_rain::{
     world::{
         World,
         actions::BasicAction,
+        building::{Building, BuildingBase, BuildingBehaviour, StoreBehaviour},
         inventory::Inventory,
-        structures::{Building, BuildingBase, BuildingBehaviour, StoreBehaviour},
-        workers::{Idle, Worker, worker_states::WorkerWithAction},
+        worker::{Idle, Worker, worker_states::WorkerWithAction},
     },
     world_interaction::commands::{self, BuildMethod},
 };

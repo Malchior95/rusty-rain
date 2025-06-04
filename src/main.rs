@@ -3,9 +3,9 @@ use std::{collections::LinkedList, sync::atomic::Ordering};
 
 use rusty_rain::config::buildings::Buildings;
 use rusty_rain::config::inventory::InventoryItems;
-use rusty_rain::world::structures::Building;
-use rusty_rain::world::workers::Idle;
-use rusty_rain::world::workers::worker_states::WorkerWithAction;
+use rusty_rain::world::building::Building;
+use rusty_rain::world::worker::Idle;
+use rusty_rain::world::worker::worker_states::WorkerWithAction;
 use rusty_rain::world_interaction::commands::{self, BuildMethod};
 use rusty_rain::{
     FRAME_NUM,
@@ -14,7 +14,7 @@ use rusty_rain::{
         World,
         actions::BasicAction,
         inventory::Inventory,
-        workers::Worker,
+        worker::Worker,
         world_map::{TileType, WorldMap, resources::ResourceType},
     },
 };

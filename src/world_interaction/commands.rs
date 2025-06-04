@@ -7,8 +7,8 @@ use crate::{
     math::Pos,
     world::{
         World,
+        building::{Building, BuildingBase, build_zone::BuildZone},
         inventory::Inventory,
-        structures::{Building, BuildingBase, build_zone::BuildZone},
         world_map::TileType,
     },
 };

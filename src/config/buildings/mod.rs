@@ -1,7 +1,7 @@
 use strum_macros::Display;
 
 use super::inventory::InventoryItems;
-use crate::world::structures::BuildingBehaviourDiscriminants;
+use crate::world::building::BuildingBehaviourDiscriminants;
 
 use super::receipes::Receipe;
 pub mod building_configs;

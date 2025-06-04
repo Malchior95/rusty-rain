@@ -2,9 +2,9 @@ use crate::{
     config::inventory::InventoryItems,
     world::{
         World,
-        structures::{
+        building::{
             BuildingBase, BuildingBehaviour, StoreBehaviour,
-            shop::{gatherer::GathererBehaviour, hearth::HearthBehaviour},
+            building_behaviour::{gatherer::GathererBehaviour, hearth::HearthBehaviour},
         },
     },
 };

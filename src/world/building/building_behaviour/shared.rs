@@ -6,7 +6,7 @@ use crate::{
     config::inventory::InventoryItems,
     data_helpers::to_string::ToString,
     math::Pos,
-    world::{World, inventory::Inventory, workers::Worker},
+    world::{World, inventory::Inventory, worker::Worker},
 };
 
 pub fn supply_command(

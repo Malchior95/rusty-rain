@@ -1,15 +1,15 @@
 use std::collections::LinkedList;
 
-use structures::{Building, BuildingBehaviour, build_zone::BuildZone};
-use workers::Worker;
+use building::{Building, BuildingBehaviour, build_zone::BuildZone};
+use worker::Worker;
 use world_map::WorldMap;
 
 use crate::FRAME_NUM;
 
 pub mod actions;
+pub mod building;
 pub mod inventory;
-pub mod structures;
-pub mod workers;
+pub mod worker;
 pub mod world_map;
 
 pub struct World {

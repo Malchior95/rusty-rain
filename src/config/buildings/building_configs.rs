@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use crate::{
     config::{inventory::InventoryItems, receipes::receipes_config},
-    world::structures::BuildingBehaviourDiscriminants,
+    world::building::BuildingBehaviourDiscriminants,
 };
 
 use super::BuildingConfig;

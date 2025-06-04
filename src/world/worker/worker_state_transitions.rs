@@ -11,7 +11,7 @@ use crate::{
             gathering_action::{GatheringAction, GatheringActionResult},
             taking_break_action::{TakingBreakAction, TakingBreakActionResult},
         },
-        workers::Worker,
+        worker::Worker,
     },
 };
 

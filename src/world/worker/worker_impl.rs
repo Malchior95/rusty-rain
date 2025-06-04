@@ -5,7 +5,7 @@ use crate::{
 
 use super::Worker;
 
-//use #![feature(macro_metavar_expr_concat)] once that becomes stable
+//use #![feature(macro_metavar_expr_concat)] once that becomes stable, rather than paste
 use paste::paste;
 macro_rules! worker_impl {
     ($name:ident, $type:ty) => {

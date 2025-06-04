@@ -7,9 +7,9 @@ use crate::{
     world::{
         World,
         actions::{ActionResult, BasicAction},
+        building::BuildingBase,
         inventory::Inventory,
-        structures::BuildingBase,
-        workers::{Worker, worker_state_transitions::WorkerActionResult},
+        worker::{Worker, worker_state_transitions::WorkerActionResult},
     },
 };
 

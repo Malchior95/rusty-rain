@@ -7,7 +7,7 @@ use crate::{
             BasicAction, TransitAction, building_action::BuildingAction, gathering_action::GatheringAction,
             taking_break_action::TakingBreakAction,
         },
-        structures::build_zone::BuildZone,
+        building::build_zone::BuildZone,
     },
 };
 
