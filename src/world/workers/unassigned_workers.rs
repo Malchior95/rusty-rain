@@ -1,9 +1,11 @@
+use log::info;
+
 use crate::ai::pathfinding::{self, pathfinding_helpers};
+use crate::config::inventory::InventoryItems;
 use crate::math::Pos;
-use crate::world::inventory::{Inventory, InventoryItem, InventoryItems};
+use crate::world::inventory::Inventory;
 use crate::world::{
     World,
-    structures::ShopTypeDiscriminants,
     workers::{Worker, worker::WorkerActionResult},
 };
 
@@ -17,8 +19,7 @@ impl Worker {
         world: &mut World,
         delta: f32,
     ) -> Worker {
-        let (worker, result) =
-            self.continue_action(assigned_hearth_pos, ShopTypeDiscriminants::MainHearth, delta, world);
+        let (worker, result) = self.continue_action(assigned_hearth_pos, delta, world, true);
 
         match result {
             WorkerActionResult::InProgress => {
@@ -57,25 +58,21 @@ fn schedule_new_work(
     };
 
     if build_zone.is_delivery_complete() {
-        let maybe_path = pathfinding::a_star(
-            &world.map,
-            worker.pos,
-            build_zone.shop_type.get_non_generic().structure.pos,
-        );
+        let maybe_path = pathfinding::a_star(&world.map, worker.pos, build_zone.building.building_base.pos);
         if let Some(path) = maybe_path {
             return worker.to_building(&world.map, path, build_zone);
         }
     }
 
-    let required_materials = build_zone.materials_required;
+    let required_materials = &build_zone.building.building_base.building.get_data().build_materials;
 
     //if no delivery completed, or unreachable, try supplying
     //TODO: consider taking materials from other buildings too
     //order by the amount of materials first
     let (closest_store, path_to_store) = if let Some(csp) =
         pathfinding_helpers::closest_shop_mut_2(worker.pos, &world.map, &mut world.shops, |s| {
-            s.is_main_store() //for now only consider stores - in the future maybe also take from other places
-            && has_any_of(s.get_non_generic().output, required_materials)
+            s.building_behaviour.is_store() //for now only consider stores - in the future maybe also take from other places
+            && has_any_of(&s.building_base.output, required_materials)
         }) {
         csp
     } else {
@@ -86,7 +83,7 @@ fn schedule_new_work(
     let path_from_store_to_build_zone = if let Some(path) = pathfinding::a_star(
         &world.map, //Should I use closest_shop_mut (no _2), this throws an error on borrow rules
         *path_to_store.last().unwrap(),
-        build_zone.shop_type.get_non_generic().structure.pos,
+        build_zone.building.building_base.pos,
     ) {
         path
     } else {
@@ -98,9 +95,9 @@ fn schedule_new_work(
 
     //make a "reservation" at the store
     take_as_much_as_possible(
-        closest_store.get_non_generic_mut().output,
+        &mut closest_store.building_base.output,
         &mut worker.inventory,
-        &build_zone.shop_type.get_build_data().materials_required,
+        &build_zone.building.building_base.building.get_data().build_materials,
     );
 
     worker.to_supplying_build_zone(world, total_path, build_zone)
@@ -120,7 +117,7 @@ fn combine_path(
 
 fn has_any_of(
     inv: &Inventory,
-    materials: &Vec<InventoryItems>,
+    materials: &Vec<(InventoryItems, f32)>,
 ) -> bool {
     for (item, _) in materials {
         if inv.get(item) >= 1.0 {
@@ -133,7 +130,7 @@ fn has_any_of(
 fn take_as_much_as_possible(
     store_inv: &mut Inventory,
     worker_inv: &mut Inventory,
-    materials: &Vec<(InventoryItem, f32)>,
+    materials: &Vec<(InventoryItems, f32)>,
 ) {
     let mut taken_total = 0.0;
 

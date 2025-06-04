@@ -1,6 +1,7 @@
 use log::info;
 
 use crate::{
+    config::{inventory::InventoryItems, receipes::ProducedReceipe},
     math::Pos,
     world::{
         World,
@@ -10,9 +11,6 @@ use crate::{
             gathering_action::{GatheringAction, GatheringActionResult},
             taking_break_action::{TakingBreakAction, TakingBreakActionResult},
         },
-        inventory::InventoryItems,
-        receipes::Receipe,
-        structures::ShopTypeDiscriminants,
         workers::{Worker, worker_with_action::WorkerWithAction},
     },
 };
@@ -23,8 +21,8 @@ use super::{
 
 pub enum WorkerActionResult {
     InProgress,
-    BroughtToShop(Vec<InventoryItems>),
-    ProductionComplete(Receipe),
+    BroughtToShop(Vec<(InventoryItems, f32)>),
+    ProductionComplete(ProducedReceipe),
     Idle,
 }
 
@@ -34,9 +32,9 @@ impl Worker {
     pub fn continue_action(
         self,
         assigned_shop_pos: Pos,
-        assigned_shop_type: ShopTypeDiscriminants,
         delta: f32,
         world: &mut World,
+        is_hearth: bool,
     ) -> (Worker, WorkerActionResult) {
         match self {
             Worker::Returning(worker) => handle_returning(worker, delta),
@@ -45,7 +43,7 @@ impl Worker {
             Worker::Gathering(worker) => handle_gathering(worker, delta, world, assigned_shop_pos),
             Worker::Producing(worker) => handle_producing(worker, delta),
             Worker::TakingBreak(worker) => handle_taking_break(worker, delta, world, assigned_shop_pos),
-            Worker::Idle(worker) => handle_idle(worker, delta, world, assigned_shop_type),
+            Worker::Idle(worker) => handle_idle(worker, delta, world, is_hearth),
             Worker::Lost(worker) => handle_lost(worker, delta, world, assigned_shop_pos),
             //only unassigned
             Worker::SupplyingBuildZone(worker) => handle_supplying_build_zone(worker, delta, world, assigned_shop_pos),
@@ -197,7 +195,7 @@ fn handle_storing(
             let store = if let Some(store) = world
                 .shops
                 .iter_mut()
-                .find(|s| s.is_main_store() && s.get_non_generic().structure.pos == worker.pos)
+                .find(|s| s.building_behaviour.is_store() && s.building_base.pos == worker.pos)
             {
                 store
             } else {
@@ -212,8 +210,8 @@ fn handle_storing(
 
             let items: Vec<_> = worker.inventory.drain().collect();
 
-            store.get_non_generic_mut().output.add_range(items);
-            worker.inventory.clear();
+            store.building_base.output.add_range(items);
+            worker.inventory.inv.clear();
 
             return (
                 worker.try_returning(&world.map, assigned_shop_pos),
@@ -340,16 +338,15 @@ fn handle_idle(
     mut worker: WorkerWithAction<Idle>,
     delta: f32,
     world: &World,
-    assigned_shop_type: ShopTypeDiscriminants,
+    is_hearth: bool,
 ) -> (Worker, WorkerActionResult) {
     worker.progress_break_requirement(delta);
 
     if worker.requires_break() {
-        return (
-            worker.try_take_break(world, assigned_shop_type),
-            WorkerActionResult::InProgress,
-        );
+        return (worker.try_take_break(world, is_hearth), WorkerActionResult::InProgress);
     }
+
+    //TODO: notify stores with result Idle at most once a sec
 
     return (Worker::Idle(worker), WorkerActionResult::Idle);
 }

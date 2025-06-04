@@ -1,9 +1,11 @@
 use impl_variant_non_generic::ImplVariantNonGeneric;
 
-use crate::world::{
-    actions::{gathering_action::GatheringAction, taking_break_action::TakingBreakAction},
-    receipes::Receipe,
-    workers::worker_with_action::{WorkerWithAction, WorkerWithActionNonGeneric, WorkerWithActionNonGenericMut},
+use crate::{
+    config::receipes::ProducedReceipe,
+    world::{
+        actions::{gathering_action::GatheringAction, taking_break_action::TakingBreakAction},
+        workers::worker_with_action::{WorkerWithAction, WorkerWithActionNonGeneric, WorkerWithActionNonGenericMut},
+    },
 };
 
 use super::{
@@ -49,7 +51,7 @@ pub struct LostAction(pub BasicAction);
 pub struct SupplyingAction(pub TransitAction);
 pub struct StoringAction(pub TransitAction);
 pub struct ReturningAction(pub TransitAction);
-pub struct ProducingAction(pub BasicAction, pub Receipe);
+pub struct ProducingAction(pub BasicAction, pub ProducedReceipe);
 pub struct SupplyingBuildZoneAction(pub TransitAction, pub BuildZone);
 
 impl CanReturn for SupplyingAction {}

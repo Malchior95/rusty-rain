@@ -2,19 +2,22 @@ use std::collections::LinkedList;
 
 use log::info;
 
-use crate::world::{
-    World,
-    actions::{ActionResult, BasicAction},
-    inventory::{Inventory, InventoryItem},
-    structures::{Shop, ShopTypeDiscriminants},
-    workers::{Worker, worker::WorkerActionResult},
+use crate::{
+    config::inventory::InventoryItems,
+    world::{
+        World,
+        actions::{ActionResult, BasicAction},
+        inventory::Inventory,
+        structures::BuildingBase,
+        workers::{Worker, worker::WorkerActionResult},
+    },
 };
 
 use super::shared;
 
-pub struct Hearth {
+pub struct HearthBehaviour {
     pub action: HearthAction,
-    pub inventory: Inventory, //regular output can be taken from. inventory is private and treated
+    pub input: Inventory, //regular output can be taken from. inventory is private and treated
     //as input for processing
     pub unassigned_workers: LinkedList<Worker>,
 }
@@ -24,7 +27,7 @@ pub enum HearthAction {
     Burning(BasicAction),
 }
 
-impl Hearth {
+impl HearthBehaviour {
     pub const WIDTH: u8 = 4;
     pub const HEIGHT: u8 = 4;
 
@@ -32,38 +35,46 @@ impl Hearth {
 
     pub const MATERIAL_SUPPLYING_THRESHOLD: f32 = 10.0;
 
-    //TODO: maybe take workers inventory capacity into accout?
-    pub const MIN_MATERIALS_TO_CONSIDER_SUPPLYING: f32 = 5.0;
-
     pub const WOOD_BURNING_RATE: f32 = 20.0;
 }
 
-impl Shop<Hearth> {
+impl Default for HearthBehaviour {
+    fn default() -> Self {
+        Self {
+            action: HearthAction::Idle,
+            input: Inventory::new(),
+            unassigned_workers: LinkedList::new(),
+        }
+    }
+}
+
+impl HearthBehaviour {
     pub fn process(
         &mut self,
+        shop_base: &mut BuildingBase,
         world: &mut World,
         delta: f32,
     ) {
-        for _ in 0..self.workers.len() {
-            let mut worker = self.workers.pop_front().unwrap();
-            worker = self.process_worker(worker, world, delta);
-            self.workers.push_back(worker);
+        for _ in 0..shop_base.workers.len() {
+            let mut worker = shop_base.workers.pop_front().unwrap();
+            worker = self.process_worker(worker, world, shop_base, delta);
+            shop_base.workers.push_back(worker);
         }
 
-        let maybe_new_action = match &mut self.data.action {
+        let maybe_new_action = match &mut self.action {
             HearthAction::Burning(burning) => continue_burning(burning, delta),
-            HearthAction::Idle => process_idle(&mut self.data.inventory, !self.workers.is_empty()),
+            HearthAction::Idle => process_idle(&mut self.input, !shop_base.workers.is_empty()),
         };
 
-        for _ in 0..self.data.unassigned_workers.len() {
-            let mut worker = self.data.unassigned_workers.pop_front().unwrap();
-            worker = worker.process_unassigned_worker(self.structure.pos, world, delta);
+        for _ in 0..self.unassigned_workers.len() {
+            let mut worker = self.unassigned_workers.pop_front().unwrap();
+            worker = worker.process_unassigned_worker(shop_base.pos, world, delta);
 
-            self.data.unassigned_workers.push_back(worker);
+            self.unassigned_workers.push_back(worker);
         }
 
         if let Some(new_action) = maybe_new_action {
-            self.data.action = new_action;
+            self.action = new_action;
         }
     }
 
@@ -71,11 +82,11 @@ impl Shop<Hearth> {
         &mut self,
         worker: Worker,
         world: &mut World,
+        shop_base: &mut BuildingBase,
         delta: f32,
     ) -> Worker {
         let shop_id = &"Hearth".to_string();
-        let (mut worker, result) =
-            worker.continue_action(self.structure.pos, ShopTypeDiscriminants::MainHearth, delta, world);
+        let (mut worker, result) = worker.continue_action(shop_base.pos, delta, world, true);
 
         match result {
             WorkerActionResult::InProgress => {
@@ -87,22 +98,16 @@ impl Shop<Hearth> {
             }
 
             WorkerActionResult::BroughtToShop(inventory) => {
-                shared::handle_supply_complete(inventory, &mut self.data.inventory, shop_id);
+                self.input.add_range(inventory);
             }
 
             WorkerActionResult::Idle => {
+                //TODO: use any fuel
                 //TODO: to function so that I can return early nicely
-                if self.data.inventory.get(&InventoryItem::Wood) > Hearth::MATERIAL_SUPPLYING_THRESHOLD {
+                if self.input.get(&InventoryItems::Wood) > HearthBehaviour::MATERIAL_SUPPLYING_THRESHOLD {
                     //no need to fetch fuel - stock full
                 } else {
-                    worker = shared::supply_command(
-                        worker,
-                        self.structure.pos,
-                        world,
-                        Hearth::MIN_MATERIALS_TO_CONSIDER_SUPPLYING,
-                        InventoryItem::Wood,
-                        shop_id,
-                    );
+                    worker = shared::supply_command(worker, shop_base.pos, world, &vec![InventoryItems::Wood], shop_id);
                 }
             }
         }
@@ -128,12 +133,12 @@ fn process_idle(
     has_worker: bool,
     //delta: f32,
 ) -> Option<HearthAction> {
-    let wood = inventory.get(&InventoryItem::Wood);
+    let wood = inventory.get(&InventoryItems::Wood);
 
     if wood > 1.0 && has_worker {
-        inventory.remove(&InventoryItem::Wood, 1.0);
+        inventory.remove(&InventoryItems::Wood, 1.0);
 
-        let burning_action = BasicAction::new(Hearth::WOOD_BURNING_RATE);
+        let burning_action = BasicAction::new(HearthBehaviour::WOOD_BURNING_RATE);
         info!("Hearth has started burning, remaining fuel: {}", wood - 1.0);
 
         return Some(HearthAction::Burning(burning_action));

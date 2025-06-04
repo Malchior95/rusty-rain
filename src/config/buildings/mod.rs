@@ -1,24 +1,25 @@
-use std::collections::HashMap;
+use strum_macros::Display;
 
-use super::{inventory::InventoryItem, receipes::Receipe};
+use super::inventory::InventoryItems;
+use crate::world::structures::BuildingBehaviourDiscriminants;
 
-pub struct Producer {
-    pub name: String,
+use super::receipes::Receipe;
+pub mod building_configs;
+
+pub struct BuildingConfig {
+    pub name: &'static str,
     pub max_workers: u8,
-    pub receipes: Vec<Receipe>,
+    pub build_time: f32,
+    pub build_materials: Vec<(InventoryItems, f32)>,
+    pub production_receipes: Vec<&'static Receipe>,
+    pub gathered_resource_types: Vec<InventoryItems>,
     pub width: u8,
     pub height: u8,
+    pub building_behaviour: BuildingBehaviourDiscriminants,
 }
 
-pub struct Gatherer {
-    pub name: String,
-    pub max_workers: u8,
-    pub resource_types: Vec<InventoryItem>,
-    pub width: u8,
-    pub height: u8,
-}
-
-pub enum BuiltInGathererBuildings {
+#[derive(PartialEq, Eq, Clone, Copy, Display)]
+pub enum Buildings {
     //Gatherer
     Woodcutter,
     Herbalist,
@@ -26,9 +27,7 @@ pub enum BuiltInGathererBuildings {
     Harvester,
     Forager,
     Trapper,
-}
 
-pub enum BuiltInProducerBuildings {
     //essential
     MainHearth,
     MainStore,
@@ -45,6 +44,24 @@ pub enum BuiltInProducerBuildings {
     Butcher,
 }
 
-fn a() {
-    let hm: HashMap<&InventoryItem, f32> = HashMap::new();
+impl Buildings {
+    pub fn get_data(&self) -> &'static BuildingConfig {
+        match self {
+            Buildings::Woodcutter => &building_configs::WOODCUTTER,
+            Buildings::Herbalist => todo!(),
+            Buildings::Stonecutter => todo!(),
+            Buildings::Harvester => todo!(),
+            Buildings::Forager => todo!(),
+            Buildings::Trapper => todo!(),
+            Buildings::MainHearth => &building_configs::MAIN_HEARTH,
+            Buildings::MainStore => &building_configs::MAIN_STORE,
+            Buildings::CrudeWorkstation => todo!(),
+            Buildings::MakeshiftPost => todo!(),
+            Buildings::Lumbermill => &building_configs::LUMBERMILL,
+            Buildings::Kiln => todo!(),
+            Buildings::Brickyard => todo!(),
+            Buildings::FieldKitchen => todo!(),
+            Buildings::Butcher => todo!(),
+        }
+    }
 }

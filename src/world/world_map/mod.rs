@@ -3,9 +3,10 @@ use std::fmt::Display;
 use resources::{ResourceCharge, ResourceType};
 use strum_macros::{Display, EnumDiscriminants};
 
-use crate::math::Pos;
+use crate::{config::buildings::Buildings, math::Pos};
 
-use super::structures::{ShopTypeDiscriminants, Structure};
+use super::structures::BuildingBehaviourDiscriminants;
+
 pub mod resources;
 
 pub struct WorldMap {
@@ -23,11 +24,11 @@ pub enum TileType {
     #[default]
     Empty,
     Road,
-    Structure(ShopTypeDiscriminants),
+    Structure(Buildings),
     //TODO: I like the approach with build_zones - maybe do the same here, but rather than linked
     //list use HashMap<Pos, (ResourceType, ResourceCharge)>???
     Resource(ResourceType, ResourceCharge, bool),
-    BuildZone(ShopTypeDiscriminants),
+    BuildZone(Buildings),
 }
 
 impl PartialEq for TileType {
@@ -38,6 +39,7 @@ impl PartialEq for TileType {
         match (self, other) {
             (Self::Structure(l0), Self::Structure(r0)) => l0 == r0,
             (Self::Resource(l0, _, _), Self::Resource(r0, _, _)) => l0 == r0,
+            (Self::BuildZone(l0), Self::BuildZone(r0)) => l0 == r0,
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
     }
@@ -66,33 +68,37 @@ impl WorldMap {
     /// you are risking a panic or invalid game state
     pub fn build<F>(
         &mut self,
-        str: &Structure,
+        pos: &Pos,
+        width: u8,
+        height: u8,
         mut tile_type_factory: F,
     ) where
         F: FnMut() -> TileType,
     {
-        for h in 0..str.height {
-            for w in 0..str.width {
-                self.map[str.pos.y + h as usize][str.pos.x + w as usize] = tile_type_factory();
+        for h in 0..height {
+            for w in 0..width {
+                self.map[pos.y + h as usize][pos.x + w as usize] = tile_type_factory();
             }
         }
     }
 
     pub fn can_build(
         &self,
-        str: &Structure,
+        pos: &Pos,
+        height: u8,
+        width: u8,
     ) -> bool {
-        if str.pos.y + str.height as usize >= self.height() {
+        if pos.y + height as usize >= self.height() {
             return false;
         }
 
-        if str.pos.x + str.width as usize >= self.width() {
+        if pos.x + width as usize >= self.width() {
             return false;
         }
 
-        for h in 0..str.height {
-            for w in 0..str.width {
-                if self.map[str.pos.y + h as usize][str.pos.x + w as usize] != TileType::Empty {
+        for h in 0..height {
+            for w in 0..width {
+                if self.map[pos.y + h as usize][pos.x + w as usize] != TileType::Empty {
                     return false;
                 }
             }
@@ -167,11 +173,11 @@ impl TileType {
                 //_ => " ",
             },
             TileType::Road => " ",
-            TileType::Structure(shop_type) => match shop_type {
-                ShopTypeDiscriminants::MainHearth => " ",
-                ShopTypeDiscriminants::Gatherer => "󰧻󱔐",
-                ShopTypeDiscriminants::MainStore => "󰾁 ",
-                ShopTypeDiscriminants::Producer => "󰈏 ",
+            TileType::Structure(building) => match &building.get_data().building_behaviour {
+                BuildingBehaviourDiscriminants::Hearth => " ",
+                BuildingBehaviourDiscriminants::Store => "󰾁 ",
+                BuildingBehaviourDiscriminants::Gatherer => "󰧻󱔐",
+                BuildingBehaviourDiscriminants::Producer => "󰈏 ",
             },
             TileType::BuildZone(_) => "󰡢 ",
             //TileType::Tree(_, _) => " ",
@@ -199,23 +205,5 @@ impl TileType {
             TileType::Structure(_) => false,
             TileType::BuildZone(_) => true,
         }
-    }
-
-    pub fn is_store(&self) -> bool {
-        if let TileType::Structure(structure) = self {
-            if let ShopTypeDiscriminants::MainStore = structure {
-                return true;
-            }
-        }
-        false
-    }
-
-    pub fn is_hearth(&self) -> bool {
-        if let TileType::Structure(structure) = self {
-            if let ShopTypeDiscriminants::MainHearth = structure {
-                return true;
-            }
-        }
-        false
     }
 }

@@ -3,16 +3,16 @@ use std::collections::LinkedList;
 use crate::{
     ai::pathfinding,
     math::Pos,
-    world::{World, structures::ShopType, world_map::WorldMap},
+    world::{World, structures::Building, world_map::WorldMap},
 };
 
 pub fn closest_shop_mut<'a, F>(
     start: Pos,
     world: &'a mut World,
     f: F,
-) -> Option<(&'a mut ShopType, Vec<Pos>)>
+) -> Option<(&'a mut Building, Vec<Pos>)>
 where
-    F: Fn(&ShopType) -> bool,
+    F: Fn(&Building) -> bool,
 {
     closest_shop_mut_2(start, &world.map, &mut world.shops, f)
 }
@@ -21,16 +21,16 @@ pub fn closest_shop<'a, F>(
     start: Pos,
     world: &'a World,
     f: F,
-) -> Option<(&'a ShopType, Vec<Pos>)>
+) -> Option<(&'a Building, Vec<Pos>)>
 where
-    F: Fn(&ShopType) -> bool,
+    F: Fn(&Building) -> bool,
 {
-    let mut stores: Vec<(&ShopType, Vec<Pos>)> = world
+    let mut stores: Vec<(&Building, Vec<Pos>)> = world
         .shops
         .iter()
         .filter_map(|s| {
             if f(s) {
-                let path = pathfinding::a_star(&world.map, start, s.get_non_generic().structure.pos);
+                let path = pathfinding::a_star(&world.map, start, s.building_base.pos);
                 path.map(|path| (s, path))
             } else {
                 None
@@ -51,17 +51,17 @@ where
 pub fn closest_shop_mut_2<'a, F>(
     start: Pos,
     map: &'a WorldMap,
-    shops: &'a mut LinkedList<ShopType>,
+    shops: &'a mut LinkedList<Building>,
     f: F,
-) -> Option<(&'a mut ShopType, Vec<Pos>)>
+) -> Option<(&'a mut Building, Vec<Pos>)>
 where
-    F: Fn(&ShopType) -> bool,
+    F: Fn(&Building) -> bool,
 {
-    let mut stores: Vec<(&mut ShopType, Vec<Pos>)> = shops
+    let mut stores: Vec<(&mut Building, Vec<Pos>)> = shops
         .iter_mut()
         .filter_map(|s| {
             if f(s) {
-                let path = pathfinding::a_star(map, start, s.get_non_generic().structure.pos);
+                let path = pathfinding::a_star(map, start, s.building_base.pos);
                 path.map(|path| (s, path))
             } else {
                 None

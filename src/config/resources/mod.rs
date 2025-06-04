@@ -1,6 +1,6 @@
-use super::inventory::InventoryItem;
+use super::inventory::InventoryItems;
 
 pub struct ResourceNode {
     pub name: String,
-    pub output: Vec<(InventoryItem, f32)>,
+    pub output: Vec<(InventoryItems, f32)>,
 }

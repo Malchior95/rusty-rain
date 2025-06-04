@@ -1,15 +1,18 @@
 use std::io::Write;
 use std::{collections::LinkedList, sync::atomic::Ordering};
 
+use rusty_rain::config::buildings::Buildings;
+use rusty_rain::config::inventory::InventoryItems;
+use rusty_rain::world::structures::Building;
 use rusty_rain::world::workers::Idle;
+use rusty_rain::world_interaction::commands::{self, BuildMethod};
 use rusty_rain::{
     FRAME_NUM,
     math::Pos,
     world::{
         World,
         actions::BasicAction,
-        inventory::{Inventory, InventoryItem},
-        structures::builders,
+        inventory::Inventory,
         workers::{Worker, worker_with_action::WorkerWithAction},
         world_map::{TileType, WorldMap, resources::ResourceType},
     },
@@ -83,43 +86,54 @@ pub fn new_test_world(
 }
 
 pub fn configure_world(world: &mut World) {
-    let maybe_hearth = builders::build_hearth(world, Pos::new(world.map.width() / 2, world.map.height() / 2));
-    if let Some(hearth) = maybe_hearth {
-        hearth.workers.push_back(Worker::Idle(WorkerWithAction::<Idle> {
-            name: "Hearth tender".to_string(),
+    let maybe_hearth = commands::build(
+        world,
+        Buildings::MainHearth,
+        Pos::new(world.map.width() / 2, world.map.height() / 2),
+        BuildMethod::SpawnExisting,
+    );
+
+    if let Some(Building { building_base, .. }) = maybe_hearth {
+        building_base.workers.push_front(Worker::Idle(WorkerWithAction::<Idle> {
+            name: "Hearth Tender".to_string(),
             inventory: Inventory::limited(5.0),
-            pos: hearth.structure.pos,
+            pos: building_base.pos,
             break_progress: BasicAction::new(120.0),
             exhausted: false,
             action_data: Idle(),
-        }));
+        }))
     };
 
-    let maybe_store = builders::build_mainstore(world, Pos::new(4, 3));
-    if let Some(store) = maybe_store {
-        store.output.add(&InventoryItem::Wood, 40.0);
+    let maybe_store = commands::build(world, Buildings::MainStore, Pos::new(4, 3), BuildMethod::SpawnExisting);
+    if let Some(Building { building_base, .. }) = maybe_store {
+        building_base.output.add(&InventoryItems::Wood, 40.0);
     }
 
-    let maybe_woodcutter = builders::build_woodcutter(world, Pos::new(11, 5));
+    let maybe_woodcutter = commands::build(
+        world,
+        Buildings::Woodcutter,
+        Pos::new(11, 5),
+        BuildMethod::SpawnExisting,
+    );
 
-    if let Some(woodcutter) = maybe_woodcutter {
-        woodcutter.workers.push_back(Worker::Idle(WorkerWithAction::<Idle> {
+    if let Some(Building { building_base, .. }) = maybe_woodcutter {
+        building_base.workers.push_back(Worker::Idle(WorkerWithAction::<Idle> {
             name: "Woodchuck Chuck".to_string(),
             inventory: Inventory::limited(5.0),
-            pos: woodcutter.structure.pos,
+            pos: building_base.pos,
             break_progress: BasicAction::new(120.0),
             exhausted: false,
             action_data: Idle(),
         }));
     };
 
-    let maybe_lumbermill = builders::build_lumbermill(world, Pos::new(5, 9));
+    let maybe_lumbermill = commands::build(world, Buildings::Lumbermill, Pos::new(5, 9), BuildMethod::SpawnExisting);
 
-    if let Some(lumbermill) = maybe_lumbermill {
-        lumbermill.workers.push_back(Worker::Idle(WorkerWithAction::<Idle> {
+    if let Some(Building { building_base, .. }) = maybe_lumbermill {
+        building_base.workers.push_back(Worker::Idle(WorkerWithAction::<Idle> {
             name: "Jane".to_string(),
             inventory: Inventory::limited(5.0),
-            pos: lumbermill.structure.pos,
+            pos: building_base.pos,
             break_progress: BasicAction::new(120.0),
             exhausted: false,
             action_data: Idle(),

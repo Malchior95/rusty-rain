@@ -1,9 +1,7 @@
 use crate::{
+    config::inventory::InventoryItems,
     math::Pos,
-    world::{
-        inventory::InventoryItems,
-        world_map::{TileType, WorldMap},
-    },
+    world::world_map::{TileType, WorldMap},
 };
 
 use super::{ActionResult, BasicAction, TransitAction, TransitActionResult};
@@ -20,7 +18,7 @@ pub enum GatheringActionInternalState {
 
 pub enum GatheringActionResult {
     InProgress(Pos),
-    Completed(Vec<InventoryItems>),
+    Completed(Vec<(InventoryItems, f32)>),
 }
 
 impl GatheringAction {

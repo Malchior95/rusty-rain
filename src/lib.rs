@@ -1,6 +1,7 @@
 use std::sync::atomic::AtomicUsize;
 
 pub mod ai;
+pub mod config;
 pub mod data_helpers;
 pub mod math;
 pub mod world;

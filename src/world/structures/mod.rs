@@ -1,83 +1,65 @@
-pub mod build_data;
 pub mod build_zone;
-pub mod builders;
 pub mod shop;
 
 use std::collections::LinkedList;
 
-//use enum_dispatch::enum_dispatch;
-use impl_variant_non_generic::{ImplVariantNonGeneric, IntoNonGeneric};
-use shop::{gatherer::Gatherer, hearth::Hearth, producer::Producer, store::Store};
+use shop::{gatherer::GathererBehaviour, hearth::HearthBehaviour, producer::ProducerBehaviour};
 use strum_macros::{Display, EnumDiscriminants, EnumIs};
 
-use crate::math::Pos;
+use crate::{config::buildings::Buildings, math::Pos};
 
 use super::{World, inventory::Inventory, workers::Worker};
 
-//TODO: when my arcane macro fails me in the future, I could use something like enum_dispatch to
-//expose enum data. It requires more boiler plate, but presumably works
-//
-//#[enum_dispatch]
-//pub trait ShopBase {
-//    fn structure(&self) -> &Structure;
-//    fn workers(&self) -> &LinkedList<Worker>;
-//    fn output(&self) -> &Inventory;
-//}
-//
-//impl<T> ShopBase for Shop<T> {
-//    fn structure(&self) -> &Structure {
-//        &self.structure
-//    }
-//    fn workers(&self) -> &LinkedList<Worker> {
-//        &self.workers
-//    }
-//    fn output(&self) -> &Inventory {
-//        &self.output
-//    }
-//}
-
-#[derive(IntoNonGeneric)]
-pub struct Shop<T> {
-    pub structure: Structure,
+pub struct BuildingBase {
+    pub pos: Pos,
     pub workers: LinkedList<Worker>,
     pub max_workers: u8,
     pub output: Inventory, //todo: really needed here? maybe move to data?
-    pub data: T,
+    pub building: Buildings,
 }
 
-pub struct Structure {
-    pub pos: Pos,
-
-    pub height: u8,
-    pub width: u8,
+pub struct Building {
+    pub building_base: BuildingBase,
+    pub building_behaviour: BuildingBehaviour,
 }
 
 //docs to enum dispatch claim that static dispatch can be up to 10x faster than dynamic dispatch,
 //due to not having to lookup virtual tables. I am noting this down, cause in the beginning I was
 //wondering if it is better to use enums or Box<dyn Trait>
 
-#[derive(EnumDiscriminants, EnumIs)]
+#[derive(EnumIs, EnumDiscriminants)]
 #[strum_discriminants(derive(Display))]
-#[derive(ImplVariantNonGeneric)]
-//#[enum_dispatch(ShopBase)]
-pub enum ShopType {
-    MainHearth(Shop<Hearth>),
-    MainStore(Shop<Store>),
-    Gatherer(Shop<Gatherer>),
-    Producer(Shop<Producer>),
+pub enum BuildingBehaviour {
+    Hearth(HearthBehaviour),
+    Store(StoreBehaviour),
+    Gatherer(GathererBehaviour),
+    Producer(ProducerBehaviour),
 }
 
-impl ShopType {
+pub struct StoreBehaviour {}
+
+impl Building {
     pub fn process(
         &mut self,
         world: &mut World,
         delta: f32,
     ) {
-        match self {
-            ShopType::MainHearth(hearth) => hearth.process(world, delta),
-            ShopType::Gatherer(gatherer) => gatherer.process(world, delta),
-            ShopType::Producer(producer) => producer.process(world, delta),
+        match &mut self.building_behaviour {
+            BuildingBehaviour::Hearth(hearth) => hearth.process(&mut self.building_base, world, delta),
+            BuildingBehaviour::Gatherer(gatherer) => gatherer.process(&mut self.building_base, world, delta),
+            BuildingBehaviour::Producer(producer) => producer.process(&mut self.building_base, world, delta),
             _ => {} //currently no update necessary...
+        }
+    }
+}
+
+impl BuildingBehaviourDiscriminants {
+    pub fn to_default(&self) -> BuildingBehaviour {
+        match self {
+            BuildingBehaviourDiscriminants::Hearth => BuildingBehaviour::Hearth(HearthBehaviour::default()),
+            BuildingBehaviourDiscriminants::Store => BuildingBehaviour::Store(StoreBehaviour {}),
+            BuildingBehaviourDiscriminants::Gatherer => BuildingBehaviour::Gatherer(GathererBehaviour::default()),
+            BuildingBehaviourDiscriminants::Producer => BuildingBehaviour::Producer(ProducerBehaviour::default()),
         }
     }
 }

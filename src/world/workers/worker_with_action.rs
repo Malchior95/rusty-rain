@@ -1,5 +1,6 @@
 use crate::{
     ai::pathfinding::{self, pathfinding_helpers},
+    config::{inventory::InventoryItems, receipes::ProducedReceipe},
     math::Pos,
     world::{
         World,
@@ -7,9 +8,8 @@ use crate::{
             BasicAction, TransitAction, building_action::BuildingAction, gathering_action::GatheringAction,
             taking_break_action::TakingBreakAction,
         },
-        inventory::{Inventory, InventoryItems},
-        receipes::Receipe,
-        structures::{ShopTypeDiscriminants, build_zone::BuildZone},
+        inventory::Inventory,
+        structures::build_zone::BuildZone,
         workers::SupplyingAction,
         world_map::WorldMap,
     },
@@ -82,7 +82,9 @@ impl WorkerWithAction<Idle> {
         self,
         world: &World,
     ) -> Worker {
-        let (_, path) = if let Some(path) = pathfinding_helpers::closest_shop(self.pos, world, |s| s.is_main_store()) {
+        let (_, path) = if let Some(path) =
+            pathfinding_helpers::closest_shop(self.pos, world, |s| s.building_behaviour.is_store())
+        {
             path
         } else {
             return self.to_idle();
@@ -97,7 +99,9 @@ impl WorkerWithAction<LostAction> {
         self,
         world: &World,
     ) -> Worker {
-        let (_, path) = if let Some(path) = pathfinding_helpers::closest_shop(self.pos, world, |s| s.is_main_store()) {
+        let (_, path) = if let Some(path) =
+            pathfinding_helpers::closest_shop(self.pos, world, |s| s.building_behaviour.is_store())
+        {
             path
         } else {
             return self.to_lost();
@@ -129,13 +133,13 @@ impl WorkerWithAction<Idle> {
     pub(super) fn try_take_break(
         mut self,
         world: &World,
-        assigned_shop: ShopTypeDiscriminants,
+        is_hearth: bool,
     ) -> Worker {
         info!("{} is starting a break, current pos {}.", self.name, self.pos);
 
-        //a special case scenario is when hearth tender takes a break. He won't be able to find
+        //a special case scenario is when hearth tender takes a break (or unassigned worker). He won't be able to find
         //hearth, as it was removed from the world for processing
-        if let ShopTypeDiscriminants::MainHearth = assigned_shop {
+        if is_hearth {
             let pos = self.pos;
             return Worker::TakingBreak(WorkerWithAction::to_new_action(
                 self,
@@ -143,7 +147,9 @@ impl WorkerWithAction<Idle> {
             ));
         }
 
-        let (_, path) = if let Some(path) = pathfinding_helpers::closest_shop(self.pos, world, |s| s.is_main_hearth()) {
+        let (_, path) = if let Some(path) =
+            pathfinding_helpers::closest_shop(self.pos, world, |s| s.building_behaviour.is_hearth())
+        {
             path
         } else {
             //TODO: if Hearth not accessible - do not became lost
@@ -170,7 +176,7 @@ impl WorkerWithAction<Idle> {
         mut self,
         path: Vec<Pos>,
         map: &WorldMap,
-        reservation: InventoryItems,
+        reservation: (InventoryItems, f32),
     ) -> Worker {
         info!("{} is supplying materials, current pos {}.", self.name, self.pos);
 
@@ -201,11 +207,11 @@ impl WorkerWithAction<Idle> {
 
     pub fn to_producing(
         self,
-        receipe: Receipe,
+        receipe: ProducedReceipe,
     ) -> Worker {
         Worker::Producing(WorkerWithAction::to_new_action(
             self,
-            ProducingAction(BasicAction::new(receipe.requirement), receipe),
+            ProducingAction(BasicAction::new(receipe.time_requirement), receipe),
         ))
     }
 
@@ -217,8 +223,7 @@ impl WorkerWithAction<Idle> {
     ) -> Worker {
         info!(
             "{} is building build zone at {}!",
-            self.name,
-            build_zone.shop_type.get_non_generic().structure.pos
+            self.name, build_zone.building.building_base.pos
         );
 
         Worker::Building(WorkerWithAction::to_new_action(
@@ -235,8 +240,7 @@ impl WorkerWithAction<Idle> {
     ) -> Worker {
         info!(
             "{} is supplying build zone at {}!",
-            self.name,
-            build_zone.shop_type.get_non_generic().structure.pos
+            self.name, build_zone.building.building_base.pos
         );
         Worker::SupplyingBuildZone(WorkerWithAction::to_new_action(
             self,

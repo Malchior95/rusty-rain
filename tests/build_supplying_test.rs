@@ -1,10 +1,11 @@
 use rusty_rain::{
+    config::{buildings::Buildings, inventory::InventoryItems},
     math::Pos,
     world::{
         World,
         actions::BasicAction,
-        inventory::{Inventory, InventoryItem},
-        structures::{ShopType, builders},
+        inventory::Inventory,
+        structures::{Building, BuildingBehaviour},
         workers::{Idle, Worker, worker_with_action::WorkerWithAction},
     },
     world_interaction::commands::{self, BuildMethod},
@@ -36,7 +37,7 @@ pub fn test(mut world: World) {
         .shops
         .iter()
         .find_map(|s| {
-            if let ShopType::Producer(shop) = s {
+            if let BuildingBehaviour::Producer(shop) = &s.building_behaviour {
                 Some(shop)
             } else {
                 None
@@ -46,29 +47,51 @@ pub fn test(mut world: World) {
 
     let store = world.get_stores().nth(0).unwrap();
 
-    assert!(store.into_non_generic().output.get(&InventoryItem::Wood) <= 30.0);
+    assert!(store.0.output.get(&InventoryItems::Bricks) <= 0.0);
+    assert!(store.0.output.get(&InventoryItems::Fabric) <= 0.0);
 }
 
 pub fn configure_world(world: &mut World) {
-    let maybe_hearth = builders::build_hearth(world, Pos::new(world.map.width() / 2, world.map.height() / 2));
-    if let Some(hearth) = maybe_hearth {
+    let maybe_hearth = commands::build(
+        world,
+        Buildings::MainHearth,
+        Pos::new(world.map.width() / 2, world.map.height() / 2),
+        BuildMethod::SpawnExisting,
+    );
+
+    if let Some(Building {
+        building_base,
+        building_behaviour: BuildingBehaviour::Hearth(hearth),
+    }) = maybe_hearth
+    {
         hearth
-            .data
             .unassigned_workers
             .push_front(Worker::Idle(WorkerWithAction::<Idle> {
                 name: "Bob".to_string(),
                 inventory: Inventory::limited(5.0),
-                pos: hearth.structure.pos,
+                pos: building_base.pos,
                 break_progress: BasicAction::new(120.0),
                 exhausted: false,
                 action_data: Idle(),
             }))
     };
 
-    let maybe_store = builders::build_mainstore(world, Pos::new(4, 3));
-    if let Some(store) = maybe_store {
-        store.output.add(&InventoryItem::Wood, 40.0);
+    let maybe_store = commands::build(world, Buildings::MainStore, Pos::new(4, 3), BuildMethod::SpawnExisting);
+    if let Some(Building { building_base, .. }) = maybe_store {
+        building_base.output.add(&InventoryItems::Bricks, 2.0);
+        building_base.output.add(&InventoryItems::Fabric, 2.0);
+    } else {
+        panic!();
     }
 
-    commands::build_lumbermill(world, Pos::new(4, 8), BuildMethod::SpawnBuildZone);
+    let maybe_build_zone_lumbermill = commands::build(
+        world,
+        Buildings::Lumbermill,
+        Pos::new(4, 8),
+        BuildMethod::SpawnBuildZone,
+    );
+
+    if maybe_build_zone_lumbermill.is_none() {
+        panic!();
+    }
 }

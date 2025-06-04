@@ -1,22 +1,10 @@
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::hash::Hash;
 
-use strum_macros::Display;
-
-#[derive(Hash, PartialEq, Eq, Copy, Clone, Display)]
-pub enum InventoryItem {
-    Wood,
-    Resin,
-    Berries,
-    Herbs,
-    Plank, //TODO: more
-}
-
-pub type InventoryItems = (InventoryItem, f32);
+use crate::config::inventory::InventoryItems;
 
 pub struct Inventory {
-    inv: HashMap<InventoryItem, f32>,
+    pub inv: HashMap<InventoryItems, f32>,
     pub limit: f32,
 }
 
@@ -74,7 +62,7 @@ impl Inventory {
 
     pub fn from_iter<T>(iter: T) -> Self
     where
-        T: IntoIterator<Item = InventoryItems>,
+        T: IntoIterator<Item = (InventoryItems, f32)>,
     {
         Self {
             inv: HashMap::from_iter(iter),
@@ -86,7 +74,7 @@ impl Inventory {
         &mut self,
         to_add: T,
     ) where
-        T: IntoIterator<Item = InventoryItems>,
+        T: IntoIterator<Item = (InventoryItems, f32)>,
     {
         for (key, item) in to_add {
             self.add(&key, item);
@@ -97,7 +85,7 @@ impl Inventory {
         &mut self,
         to_remove: T,
     ) where
-        T: IntoIterator<Item = InventoryItems>,
+        T: IntoIterator<Item = (InventoryItems, f32)>,
     {
         for (key, item) in to_remove {
             self.remove(&key, item);
@@ -106,14 +94,14 @@ impl Inventory {
 
     pub fn get(
         &self,
-        item: &InventoryItem,
+        item: &InventoryItems,
     ) -> f32 {
         self.inv.get(item).unwrap_or(&0.0).clone()
     }
 
     pub fn get_mut(
         &mut self,
-        item: &InventoryItem,
+        item: &InventoryItems,
     ) -> &mut f32 {
         let exists = self.inv.contains_key(item);
         if !exists {
@@ -124,7 +112,7 @@ impl Inventory {
 
     pub fn add(
         &mut self,
-        item: &InventoryItem,
+        item: &InventoryItems,
         amount: f32,
     ) {
         let current_amount = self.get_mut(item);
@@ -133,39 +121,30 @@ impl Inventory {
 
     pub fn remove(
         &mut self,
-        item: &InventoryItem,
+        item: &InventoryItems,
         amount: f32,
     ) {
         let current_amount = self.get_mut(item);
         *current_amount -= amount;
     }
 
-    pub fn drain(&mut self) -> std::collections::hash_map::Drain<InventoryItem, f32> {
+    pub fn drain(&mut self) -> std::collections::hash_map::Drain<InventoryItems, f32> {
         self.inv.drain()
     }
 
-    pub fn clear(&mut self) {
-        self.inv.clear();
+    pub fn iter(&self) -> impl Iterator<Item = (&InventoryItems, &f32)> {
+        self.inv.iter().filter(|(_, v)| **v > 0.0)
     }
 
-    pub fn transfer_until_full(
-        &mut self,
-        target: &mut Inventory,
-    ) {
-        if target.limit <= 0.0 || self.total_items() < target.limit - target.total_items() {
-            for (key, items) in self.drain() {
-                target.add(&key, items);
-            }
-        } else {
-            for (&key, items) in self.inv.iter_mut() {
-                let remaining_capacity = target.limit - target.total_items();
-                if remaining_capacity <= 0.0 {
-                    return;
-                }
-                let to_transfer = f32::min(remaining_capacity, *items);
-                *items -= to_transfer;
-                target.add(&key, to_transfer);
+    pub fn has_any_of(
+        &self,
+        materials: &Vec<InventoryItems>,
+    ) -> bool {
+        for key in materials {
+            if self.get(key) >= 1.0 {
+                return true;
             }
         }
+        false
     }
 }

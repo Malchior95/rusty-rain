@@ -1,15 +1,28 @@
+use crate::data_helpers::to_string::ToString;
 use strum_macros::Display;
 
 #[derive(Eq, PartialEq, Hash)]
-pub struct InventoryItem {
+pub struct InventoryItemConfig {
     pub name: String,
     pub is_fuel: bool,
     pub is_basic_food: bool,
     pub is_pack: bool,
 }
 
+impl ToString for (InventoryItems, f32) {
+    fn to_string(&self) -> String {
+        format!("{} {}", self.0, self.1)
+    }
+}
+
+impl ToString for InventoryItems {
+    fn to_string(&self) -> String {
+        format!("{}", self)
+    }
+}
+
 #[derive(Hash, PartialEq, Eq, Copy, Clone, Display)]
-pub enum BuiltInInventoryItems {
+pub enum InventoryItems {
     //basic materials
     Wood,
     Resin,

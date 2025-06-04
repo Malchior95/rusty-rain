@@ -2,154 +2,137 @@ use log::info;
 use strum::IntoDiscriminant;
 
 use crate::{
-    ai::pathfinding::{self, pathfinding_helpers},
+    ai::pathfinding::pathfinding_helpers,
+    config::inventory::InventoryItems,
+    data_helpers::to_string::ToString,
     math::Pos,
-    world::{
-        World,
-        inventory::{Inventory, InventoryItem, InventoryItems},
-        receipes::Receipe,
-        workers::Worker,
-        world_map::{TileType, resources::ResourceType},
-    },
+    world::{World, inventory::Inventory, workers::Worker},
 };
-
-pub fn handle_supply_complete(
-    inventory: Vec<InventoryItems>,
-    shop_inventory: &mut Inventory,
-    shop_id: &String,
-) {
-    shop_inventory.add_range(inventory);
-
-    info!("{} has total items: {}", shop_id, shop_inventory);
-}
-
-pub fn handle_poruction_complete(
-    shop_input: &mut Inventory,
-    shop_output: &mut Inventory,
-    receipe: Receipe,
-) {
-    info!("{} production complete.", receipe);
-
-    shop_input.remove_range(receipe.input);
-    shop_output.add_range(receipe.output);
-
-    info!("Store now has input: {} output: {}", shop_input, shop_output);
-}
 
 pub fn supply_command(
     worker: Worker,
     shop_pos: Pos,
     world: &mut World,
-    min_materials_to_consider_supplying: f32,
-    materials_to_supply: InventoryItem,
+    materials_to_supply_any_of: &Vec<InventoryItems>,
     shop_id: &String,
 ) -> Worker {
     //only idle worker can start supplying
-    if let Worker::Idle(idle_worker) = worker {
-        let (closest_shop, path) = if let Some(x) = pathfinding_helpers::closest_shop_mut(shop_pos, world, |s| {
-            s.get_non_generic().output.get(&materials_to_supply) >= min_materials_to_consider_supplying
-        }) {
-            x
-        } else {
-            info!(
-                "{} has no suitable stores with {} nearby.",
-                shop_id, materials_to_supply
-            );
-            return Worker::Idle(idle_worker); //remain idle
-        };
+    let idle_worker = if let Worker::Idle(idle_worker) = worker {
+        idle_worker
+    } else {
+        return worker;
+    };
 
-        let stored_materials = closest_shop.get_non_generic().output.get(&materials_to_supply);
-        let to_take = f32::min(stored_materials, idle_worker.inventory.limit);
-
-        closest_shop
-            .get_non_generic_mut()
-            .output
-            .remove(&materials_to_supply, to_take);
-        let reservation = (materials_to_supply, to_take);
-
+    let (closest_shop, path) = if let Some(x) = pathfinding_helpers::closest_shop_mut(shop_pos, world, |s| {
+        s.building_base.output.has_any_of(materials_to_supply_any_of)
+    }) {
+        x
+    } else {
         info!(
-            "{} will be supplying {} {} from {} at {}. Remaining in the store: {}.",
-            idle_worker.name,
-            reservation.0,
-            reservation.1,
-            closest_shop.discriminant(),
-            path.last().unwrap(),
-            closest_shop.get_non_generic().output
+            "{} has no suitable stores with any of {} nearby...",
+            shop_id,
+            materials_to_supply_any_of.to_string()
         );
+        return Worker::Idle(idle_worker); //remain idle
+    };
 
-        return idle_worker.to_supplying(path, &world.map, reservation);
+    let reservation = pick_one_of(
+        &closest_shop.building_base.output,
+        materials_to_supply_any_of,
+        idle_worker.inventory.limit,
+    )
+    .unwrap(); //can safely unwrap - just checked if the store has the materials
+
+    closest_shop.building_base.output.remove(&reservation.0, reservation.1);
+
+    info!(
+        "{} will be supplying {} {} from {} at {}. Remaining in the store: {}.",
+        idle_worker.name,
+        reservation.0,
+        reservation.1,
+        closest_shop.building_behaviour.discriminant(),
+        path.last().unwrap(),
+        closest_shop.building_base.output
+    );
+
+    return idle_worker.to_supplying(path, &world.map, reservation);
+}
+
+///This method will prioritize the item of the highest quantity from the store
+fn pick_one_of(
+    inventory: &Inventory,
+    materials_to_take_variant: &Vec<InventoryItems>,
+    limit: f32,
+) -> Option<(InventoryItems, f32)> {
+    if materials_to_take_variant.is_empty() || inventory.is_empty() {
+        return None;
     }
-    return worker;
+
+    let mut union: Vec<_> = inventory
+        .iter()
+        .filter(|(key, _)| materials_to_take_variant.iter().any(|k| *key == k))
+        .collect();
+
+    union.sort_by(|l, r| l.1.total_cmp(r.1));
+
+    let best_material = if let Some(a) = union.first() {
+        a.0.clone() //clone to be returned from the func
+    } else {
+        return None;
+    };
+
+    let best = inventory.get(&best_material);
+
+    let to_take = f32::min(best, limit);
+
+    Some((best_material, to_take))
 }
 
 pub fn store_command(
     worker: Worker,
     world: &mut World,
     shop_output: &mut Inventory,
-    storing_in_progress_flag: &mut bool,
     shop_id: &String,
 ) -> Worker {
-    if let Worker::Idle(idle_worker) = worker {
-        //store items
-        info!("{} is storing resources. Current inventory: {}", shop_id, shop_output);
+    let idle_worker = if let Worker::Idle(idle_worker) = worker {
+        idle_worker
+    } else {
+        return worker;
+    };
 
-        let mut storing_or_idle_worker = idle_worker.try_storing(world);
-        if let Worker::Storing(sw) = &mut storing_or_idle_worker {
-            info!("{} is storing materials, current pos {}.", sw.name, sw.pos);
+    //store items
+    info!("{} is storing resources. Current inventory: {}", shop_id, shop_output);
 
-            shop_output.transfer_until_full(&mut sw.inventory);
+    let mut storing_or_idle_worker = idle_worker.try_storing(world);
+    if let Worker::Storing(sw) = &mut storing_or_idle_worker {
+        info!("{} is storing materials, current pos {}.", sw.name, sw.pos);
 
-            info!("{} now has the follwoing materials {}", sw.name, sw.inventory);
-            info!("The follwoing materials remain in the shop {}", shop_output);
-        }
+        transfer_until_full(shop_output, &mut sw.inventory);
 
-        //once started storing - store everything
-        if shop_output.total_items() <= 0.0 {
-            *storing_in_progress_flag = false;
-        } else {
-            *storing_in_progress_flag = true;
-        }
-
-        return storing_or_idle_worker;
+        info!("{} now has the follwoing materials {}", sw.name, sw.inventory);
+        info!("The follwoing materials remain in the shop {}", shop_output);
     }
-    return worker; //this method has no effect if worker is not idle
+
+    return storing_or_idle_worker;
 }
 
-pub fn gather_command(
-    worker: Worker,
-    world: &mut World,
-    resource_type: &ResourceType,
-    shop_id: &String,
-) -> Worker {
-    if let Worker::Idle(idle_worker) = worker {
-        let maybe_path = pathfinding::dijkstra_closest(&world.map, idle_worker.pos, |t| {
-            if let TileType::Resource(r, _, being_cut) = t {
-                if r == resource_type && !being_cut { true } else { false }
-            } else {
-                false
+fn transfer_until_full(
+    source: &mut Inventory,
+    target: &mut Inventory,
+) {
+    if target.limit <= 0.0 || source.total_items() < target.limit - target.total_items() {
+        for (key, items) in source.drain() {
+            target.add(&key, items);
+        }
+    } else {
+        for (&key, items) in source.inv.iter_mut() {
+            let remaining_capacity = target.limit - target.total_items();
+            if remaining_capacity <= 0.0 {
+                return;
             }
-        });
-
-        let path = if let Some(path) = maybe_path {
-            path
-        } else {
-            info!("{} has no suitable resource nodes nearby.", shop_id);
-            return Worker::Idle(idle_worker); //remain idle
-        };
-
-        return idle_worker.to_gathering(path, &mut world.map);
+            let to_transfer = f32::min(remaining_capacity, *items);
+            *items -= to_transfer;
+            target.add(&key, to_transfer);
+        }
     }
-    return worker;
-}
-
-pub fn produce_command(
-    worker: Worker,
-    receipe: Receipe,
-    shop_id: &String,
-) -> Worker {
-    if let Worker::Idle(idle_worker) = worker {
-        info!("{} (worker {}) is producing {}.", shop_id, idle_worker.name, receipe);
-        return idle_worker.to_producing(receipe);
-    }
-    return worker;
 }

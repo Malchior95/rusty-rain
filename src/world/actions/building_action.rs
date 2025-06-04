@@ -1,5 +1,4 @@
 use log::{error, info};
-use strum::IntoDiscriminant;
 
 use crate::{
     math::Pos,
@@ -84,20 +83,24 @@ fn progres_build_action(
     let action = build_zone.progress.continue_action(delta);
 
     if let ActionResult::InProgress = action {
-        return BuildingActionResult::InProgress(build_zone.shop_type.get_non_generic().structure.pos);
+        return BuildingActionResult::InProgress(build_zone.building.building_base.pos);
     }
 
     let data_taken = maybe_build_zone.take().unwrap(); //safe unwrap, I already checked if the data
     //is there
 
-    let shop = data_taken.shop_type;
+    let shop = data_taken.building;
 
     //TODO: this function assumes the check was already made and the build_zone footprint matches
     //the building's footprint - verify
 
-    world.map.build(shop.get_non_generic().structure, || {
-        TileType::Structure(shop.discriminant())
-    });
+    let config = shop.building_base.building.get_data();
+
+    world
+        .map
+        .build(&shop.building_base.pos, config.width, config.height, || {
+            TileType::Structure(shop.building_base.building)
+        });
 
     world.shops.push_back(shop);
 
