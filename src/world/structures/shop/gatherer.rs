@@ -6,7 +6,7 @@ use crate::{
     world::{
         World,
         structures::BuildingBase,
-        workers::{Worker, worker::WorkerActionResult},
+        workers::{Worker, worker_state_transitions::WorkerActionResult},
         world_map::TileType,
     },
 };

@@ -11,12 +11,13 @@ use crate::{
             gathering_action::{GatheringAction, GatheringActionResult},
             taking_break_action::{TakingBreakAction, TakingBreakActionResult},
         },
-        workers::{Worker, worker_with_action::WorkerWithAction},
+        workers::Worker,
     },
 };
 
 use super::{
     Idle, LostAction, ProducingAction, ReturningAction, StoringAction, SupplyingAction, SupplyingBuildZoneAction,
+    worker_states::WorkerWithAction,
 };
 
 pub enum WorkerActionResult {

@@ -2,13 +2,11 @@ use crate::ai::pathfinding::{self, pathfinding_helpers};
 use crate::config::inventory::InventoryItems;
 use crate::math::Pos;
 use crate::world::inventory::Inventory;
-use crate::world::{
-    World,
-    workers::{Worker, worker::WorkerActionResult},
-};
+use crate::world::{World, workers::Worker};
 
 use super::Idle;
-use super::worker_with_action::WorkerWithAction;
+use super::worker_state_transitions::WorkerActionResult;
+use super::worker_states::WorkerWithAction;
 
 impl Worker {
     pub fn process_unassigned_worker(

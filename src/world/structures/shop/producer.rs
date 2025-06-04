@@ -11,7 +11,7 @@ use crate::{
         World,
         inventory::Inventory,
         structures::BuildingBase,
-        workers::{Worker, worker::WorkerActionResult},
+        workers::{Worker, worker_state_transitions::WorkerActionResult},
     },
 };
 

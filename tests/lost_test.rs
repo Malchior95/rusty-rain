@@ -7,7 +7,7 @@ use rusty_rain::{
         actions::BasicAction,
         inventory::Inventory,
         structures::Building,
-        workers::{LostAction, Worker, worker_with_action::WorkerWithAction},
+        workers::{LostAction, Worker, worker_states::WorkerWithAction},
         world_map::{TileType, resources::ResourceType},
     },
     world_interaction::commands::{self, BuildMethod},

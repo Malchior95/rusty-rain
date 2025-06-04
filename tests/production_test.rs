@@ -7,7 +7,7 @@ use rusty_rain::{
         actions::BasicAction,
         inventory::Inventory,
         structures::{Building, BuildingBase, BuildingBehaviour, StoreBehaviour},
-        workers::{Idle, Worker, worker_with_action::WorkerWithAction},
+        workers::{Idle, Worker, worker_states::WorkerWithAction},
     },
     world_interaction::commands::{self, BuildMethod},
 };
