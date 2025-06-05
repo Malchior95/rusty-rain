@@ -17,9 +17,6 @@ to change:
 
 Currently not implemented, but should be the short-term focus:
 
-- tests! The game is growing and I need some reliable test setups
-- refining gathering and production buildings - allow building to gather
-  multiple nodes, or producer to produce mutiple different receipes
 - advanced worker logic - food and mood
 - housing, vanity buildings - I would like the worker to be affected by the
   parks and status, as they walk past them. Kind of like in Oxygen Not Included.
